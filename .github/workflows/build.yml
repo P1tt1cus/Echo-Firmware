@@ -17,7 +17,7 @@ jobs:
       - name: Verify pinned API
         run: test "$(sed -n '2p' targets/f7/api_symbols.csv)" = 'Version,+,87.1,,'
       - name: Build Echo firmware and firmware-only update
-        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay SKIP_EXTERNAL=1
+        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay fap_lfrfid SKIP_EXTERNAL=1
       - name: Check Echo assets and version metadata
         run: |
           . scripts/toolchain/fbtenv.sh
@@ -28,6 +28,7 @@ jobs:
           python3 scripts/echo_replay_control_test.py
           python3 scripts/echo_shared_menu_test.py
           python3 scripts/echo_browser_test.py
+          python3 scripts/echo_rfid_test.py
           python3 scripts/echo_installer_test.py --package-check
       - uses: actions/upload-artifact@v4
         with:
@@ -39,5 +40,6 @@ jobs:
             build/f7-firmware-C/.extapps/subghz.fap
             build/f7-firmware-C/.extapps/momentum_app.fap
             build/f7-firmware-C/.extapps/echo_replay.fap
+            build/f7-firmware-C/.extapps/lfrfid.fap
           include-hidden-files: true
           if-no-files-found: error

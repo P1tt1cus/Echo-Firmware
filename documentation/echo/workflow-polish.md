@@ -58,3 +58,22 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Cancellation cannot interrupt an individual blocking SD operation; checks happen
   between operations. This is not a claim about an unresponsive SD driver's latency.
 - Core build and on-device checks recorded below when complete.
+- `firmware_all updater_minpackage SKIP_EXTERNAL=1`: PASS; API 87.1 unchanged.
+  Existing shared-menu production regression suite: PASS. Changes committed as
+  `61d8733a5`; core installation deferred to combined validated package.
+
+### Stage 2: RFID
+
+- Read screen distinguishes searching, sensed activity, and checking decoded data;
+  shows auto ASK/PSK switching or the selected fixed mode, placement and Back hints.
+- Auto-read re-entry explicitly resets its mode/status instead of showing the last
+  scan's state. Signal/card-sense events never become a completed-read claim.
+- Existing worker already verifies repeated decoded data and compares read-back
+  protocol/data after writing. Success now states **Data verified / Read-back matches**,
+  without claiming reader acceptance or password verification.
+- Write retries distinguish differing read-back from a prolonged unverified write.
+  Both normal and password-write scenes retain Back cancellation.
+- `python3 scripts/echo_rfid_test.py`: PASS under ASAN/UBSAN, all 12 mode/status
+  layouts, real scene transitions, no success from sense events, fixed-mode
+  behavior, re-entry, worker stop/join calls. `fap_lfrfid`: PASS, API87.1.
+- Physical tag read/write/reader-acceptance tests remain pending fixtures.
