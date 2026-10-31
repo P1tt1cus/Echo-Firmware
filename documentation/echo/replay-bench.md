@@ -1,6 +1,6 @@
 # Sub-GHz Replay Bench
 
-**Echo Replay Bench 1.1** is a separate app, launched from the **Sub-GHz 1.3**
+**Echo Replay Bench 1.2** is a separate app, launched from the **Sub-GHz 1.5**
 dashboard, targeting f7/API 87.1. It uses the Flipper's internal CC1101; no ESP32 or external radio is needed.
 Open **Tools → Sub-GHz → Replay Bench**, or **Apps → Sub-GHz → Echo Replay Bench**.
 The dashboard closes before launching the bench to leave memory for file browsing

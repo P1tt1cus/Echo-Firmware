@@ -17,15 +17,15 @@ claims. Do not label an unperformed physical test as passed.
 
 | Stage | Scope | Status |
 | --- | --- | --- |
-| 1 | Stability: memory, browser cancellation, worker/radio cleanup | Browser fixes and sanitizer checks pass; device regression pending final core install; radio cleanup continues in stages 4–6 |
-| 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/build and device UI pass; physical tag tests pending |
-| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
-| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
-| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
-| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/build and device UI pass; physical IR tests pending |
-| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Browser/name/RAW and RFID/NFC/Sub-GHz/IR save fixes implemented; sanitizer/build/CI and synthetic app file checks pass; shared-core device regression pending |
-| 8 | Cross-app contextual actions and measured performance review | IR reorder Pick/Save/Cancel fixed and device-verified; IR buffer allocation measurement recorded; final cross-app review pending |
-| 9 | Full regression, install/hash checks, physical validation, passing fork PR | Pending |
+| 1 | Stability: memory, browser cancellation, worker/radio cleanup | Implemented; host/CI and installed-core browser/startup checks pass; Sub-GHz OOM fixed and retested |
+| 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/CI, UI and synthetic save/readback pass; physical fixtures listed below |
+| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/CI, status and synthetic original/shadow save/restore pass; physical fixtures listed below |
+| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/CI, RAW EOF/errors/cancel, RX start/stop and Bench prepare/cancel pass; receiver tests listed below |
+| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/CI and REM-only UI pass; paired-host checks listed below |
+| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/CI, navigation and synthetic save/reorder/readback pass; appliance checks listed below |
+| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Implemented; fault-injection tests and installed browser/file checks pass; power-loss/SD hardware faults unverified |
+| 8 | Cross-app contextual actions and measured performance review | Implemented; contextual review and IR/Sub-GHz memory measurements recorded |
+| 9 | Full regression, install/hash checks, physical validation, passing fork PR | Core/apps installed and hash-verified; final startup/exit regression and CI pass; fork merge pending |
 
 ## Baseline
 
@@ -623,3 +623,51 @@ not in source. Never commit captures, credential data or pairing secrets.
 - New production-function sanitizer test covers 100 allocation/release cycles,
   500 retained-worker hops, producer ordering, no-op and TX-only stops. Runtime
   decode/cancellation verification of the new apps is pending.
+
+### Final runtime result (2026-11-01)
+
+- Sub-GHz 1.5, Add Manually 1.2 and Replay Bench 1.2 source `d3f612c2a`
+  installed with matching local/device hashes. Firmware CI `41236679971` and
+  lint `41236679984` pass, including all 28 registered host checks.
+- The exact synthetic RAW decode that crashed now reaches Done; loader and USB
+  remain responsive. Post-decode free heap is 30456 bytes, minimum 17896,
+  largest block 18088. First-record and later-record zero-duration errors both
+  show File error; Back returns through the menus and restores browser selection.
+- A 51200-pulse synthetic file showed Read 020%; Back returned to the menu.
+  After cancellation free heap was 43200 bytes. This verifies responsive offline
+  cancellation, not RF playback or a precise cancellation-latency bound.
+- Live internal-radio reception starts/stops three times with no decoded captures.
+  Before RX: 43192 free bytes; during RX: 24216; after: 43232. After three cycles:
+  43136, largest block 31640. This supports release of RX memory on full stop;
+  it is not a long-duration leak benchmark or a successful protocol reception.
+- Replay Bench loads the valid synthetic RAW, shows Prepared A, then Back cancels
+  to the preserved Prepare selection. No Send action or RF transmission ran.
+- Final startup/exit checks pass for RFID, NFC, Infrared, Bad KB's file browser,
+  Sub-GHz/Add Manually/Replay Bench, Echo settings and existing Multi Converter.
+  Loader returns idle; free heap after the ordinary app checks is approximately
+  143 KB. The earlier blank IR startup did not recur in this pass; its original
+  cause remains unconfirmed. This is representative compatibility, not testing
+  every third-party app or every possible UI transition.
+- All 234 synthetic regression files were hash-checked against local fixtures
+  before removal, along with their three test directories. Prior synthetic
+  RFID/NFC/IR files were removed in their respective stages. Existing user files,
+  apps and settings remain in place. Local manifest records installed versions.
+
+### Physical validation dependencies — not yet performed
+
+No fixtures or paired-host choice were supplied in response to the earlier
+questions. These checks remain distinct from the completed software/UI work:
+
+| Area | Needed | Check and pass evidence |
+| --- | --- | --- |
+| RFID | Owned readable 125 kHz tag, disposable compatible writable T5577 and the user's reader | Repeat reads match protocol/data; write reports matching read-back; separate reader acceptance; cancel a retry without reporting success |
+| NFC | Owned supported test card and corresponding reader; writable disposable card only for a chosen write test | Compare captured pages/sectors/keys with expected data; partial stays partial; original/shadow restore is correct; reader acceptance is recorded separately from emulation support |
+| Sub-GHz | Owned permitted test transmitter/receiver and known static or RAW capture | Verify protocol reception and repeat counting; one requested bounded replay, stop behavior and independent receiver observation; no rolling-code acceptance inference |
+| BLE HID | User-selected paired host and an open blank editor | Pair/link feedback, explicit Run typing only “Echo test”, disconnect mid-delay/long string releases keys and cancels; reconnect requires a new Run; cancel Arm without typing |
+| IR | Owned remote and responding appliance, with known working codes | Compare short press with held repeat/release, Back cancellation, parsed/RAW learning and actual appliance response |
+
+The earlier Kogan remote failures remain unresolved; no compatibility claim is
+made by these changes. SD hardware removal/failure, power-loss recovery, sustained
+RF/DMA timing and exhaustive third-party compatibility are also unverified.
+Staged writes protect ordinary detected I/O failures but are not power-loss-atomic.
+The existing API does not expose detailed late RAW TX worker errors to its TX UI.

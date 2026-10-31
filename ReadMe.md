@@ -30,6 +30,7 @@ Echo's native firmware works without an ESP32. Radio operations require the comp
 - **Sub-GHz Replay Bench:** compare saved captures, inspect metadata and decoded-key differences, prepare one bounded replay, and record receiver observations separately from transmission status. See the [bench guide](documentation/echo/replay-bench.md).
 - **Desktop identity:** an original monochrome pulse animation reveals the Echo wordmark.
 - **Installer:** Echo branding, real progress, readable stages and retained error diagnostics, retry and exit controls.
+- **Reliable native workflows:** clearer RFID/NFC results, cancellable BLE HID sequences, bounded RAW decoding, lower idle Sub-GHz memory use, IR hold/reorder controls and staged file saves. See the [validation record and physical-test limits](documentation/echo/workflow-polish.md).
 - **Compatibility:** the maintained build retains API 87.1 and existing file formats. Internal application IDs and settings paths keep their established names so saved configuration continues to work.
 
 Custom game screens, live views and file browsers keep their own rendering and controls. Echo does not replace every third-party interface.
