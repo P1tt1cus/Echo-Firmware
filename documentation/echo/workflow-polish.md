@@ -21,7 +21,7 @@ claims. Do not label an unperformed physical test as passed.
 | 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/build and device UI pass; physical tag tests pending |
 | 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
-| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | In progress: cancellation fixes pass host tests/build; feedback and physical checks pending |
+| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Pending |
 | 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Pending |
 | 8 | Cross-app contextual actions and measured performance review | Pending |
@@ -190,3 +190,22 @@ not in source. Never commit captures, credential data or pairing secrets.
 - A linked status means the stack's connection/pairing event was received. It does
   not prove that a host accepted HID reports. Physical pairing rejection, reconnect,
   HID receipt and held-key release remain separate device tests.
+
+- Bad KB 1.1 source `571ee7b95` installed; local/device MD5
+  `a1f9b4556c55e729c304caaa017ac12d`. A synthetic BLE_ID plus REM-only script
+  displayed BLE **Pair host**, **Armed on connect**, and cancellation back to idle.
+  Single-input screen checks passed. No keyboard or mouse command was present.
+  Previous binary and screenshots retained in `build/workflow-polish-install/`.
+- Physical host choice requested (this Mac, user's other host, or defer). No host
+  was paired and no typing test was run in this pass.
+
+### Stage 6: IR — audit started
+
+- Current remote/learn-success screens ignore Back while transmitting and their
+  exit handlers do not explicitly stop TX. Inspect shared button-menu held-input
+  behavior and app teardown before choosing the cleanup change.
+- Remote uses the vertical ButtonMenu; signal names are indexed, but parsed/RAW
+  metadata is only loaded when sending. Avoid parsing every button on each draw.
+- Existing `infrared_tx_start` rate-limits requests and `infrared_tx_stop` joins the
+  worker. Preserve protocol-specific repeat handling; UI feedback must distinguish
+  an actual started worker from a rate-limited request.
