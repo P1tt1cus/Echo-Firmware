@@ -99,6 +99,7 @@ static void subghz_load_custom_presets(SubGhzSetting* setting) {
 
 SubGhz* subghz_alloc(bool alloc_for_tx_only) {
     SubGhz* subghz = malloc(sizeof(SubGhz));
+    subghz->replay_bench = NULL;
 
     subghz->file_path = furi_string_alloc();
     subghz->file_path_tmp = furi_string_alloc();
@@ -305,6 +306,7 @@ void subghz_free(SubGhz* subghz, bool alloc_for_tx_only) {
         subghz->rpc_ctx = NULL;
     }
 
+    subghz_replay_bench_free(subghz);
     subghz_txrx_speaker_off(subghz->txrx);
     subghz_txrx_stop(subghz->txrx);
     subghz_txrx_sleep(subghz->txrx);

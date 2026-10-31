@@ -49,3 +49,8 @@ Echo installer UI uses `applications/system/updater/views/echo_install.h`. Keep
 error diagnostics and retry/exit controls intact. Run
 `scripts/echo_installer_test.py --package-check` after building. The Echo guide
 records the version sources, quoted manifest label and preview limitations.
+
+Replay Bench is part of the Sub-GHz 1.2 FAP, not a firmware API change. Read
+`documentation/echo/replay-bench.md`. Run the parser and control sanitizer tests
+(`echo_replay_test.py`, `echo_replay_control_test.py`) and build `fap_subghz`.
+Never use real captures or run RF transmissions just to exercise its UI.
