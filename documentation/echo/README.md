@@ -1,6 +1,7 @@
 # Echo 1.1
 
-Echo is the personal firmware identity for this maintained Momentum fork. The
+[Echo Firmware](https://github.com/P1tt1cus/Echo-Firmware) is an independently
+maintained Momentum fork. The
 visible device name is **Echo**, without an owner name or edition suffix.
 The original Momentum and Flipper attribution and licenses remain intact.
 
@@ -49,7 +50,7 @@ python3 -c 'from scripts.asset_packer import pack; pack("assets/dolphin/custom",
 
 Copy `build/echo-assets/Echo` to `/ext/asset_packs/Echo`. Set `asset_pack: Echo`
 and `menu_style: 6` (Compact) in the existing `/int/.momentum_settings.txt`,
-preserving other settings. Set the device name through Momentum's name setting,
+preserving other settings. Set the device name through Echo's configuration app (legacy loader ID `Momentum`),
 or write `/ext/dolphin/name.settings` using the existing Flipper Name File v1
 format with `Name: Echo`. Both settings take effect after reboot. Re-enumerate
 USB afterward: the port name changes from Qwerty to Echo. Close apps and release
@@ -135,3 +136,17 @@ distinguish preview screenshots from actual install completion evidence.
 
 The updater restarts between backup, flashing and restore. Its restart screen
 says **Restarting Echo**, never declares completion before the desktop returns.
+
+## Repository branding
+
+The maintained repository is **P1tt1cus/Echo-Firmware**; the local workspace
+folder remains `momentum_firmware` and the branch remains `studio`. Momentum is
+retained as upstream attribution. The CLI `src` command and fallback source
+metadata point to Echo. Menus display the legacy `Momentum` configuration app
+as **Echo**, retaining its loader ID, keybinds and saved menu entries.
+
+Build `fap_momentum_app` for its menu-editor label update; install the resulting
+`build/f7-firmware-C/.extapps/momentum_app.fap` at
+`/ext/apps/assets/momentum_app.fap`. This is separate from a firmware-only update.
+The historical `MNTM` menu style remains a legacy layout; Echo uses Compact.
+Repository branding changes do not require a device rename or erase.

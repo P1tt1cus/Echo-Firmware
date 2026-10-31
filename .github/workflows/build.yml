@@ -17,7 +17,7 @@ jobs:
       - name: Verify pinned API
         run: test "$(sed -n '2p' targets/f7/api_symbols.csv)" = 'Version,+,87.1,,'
       - name: Build Echo firmware and firmware-only update
-        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz SKIP_EXTERNAL=1
+        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz fap_momentum_app SKIP_EXTERNAL=1
       - name: Check Echo assets and version metadata
         run: |
           . scripts/toolchain/fbtenv.sh
@@ -34,5 +34,6 @@ jobs:
             build/f7-firmware-C/.extapps/infrared.fap
             build/f7-firmware-C/.extapps/nfc.fap
             build/f7-firmware-C/.extapps/subghz.fap
+            build/f7-firmware-C/.extapps/momentum_app.fap
           include-hidden-files: true
           if-no-files-found: error

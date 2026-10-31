@@ -197,9 +197,14 @@ menu_test = r"""
 int main(void) {
  MenuModel m={0};MenuItemArray_init(m.items);m.title=alloc_text("Tools");Canvas c={.w=128,.h=64};
  menu_draw_echo(&c,&m);
+ MenuItem* legacy=MenuItemArray_push_new(m.items);legacy->label="Momentum";
+ canvas_clear(&c);menu_draw_echo(&c,&m);
+ assert(drawn(&c,"Echo")&&!drawn(&c,"Momentum"));
+ assert(!strcmp(MenuItemArray_cget(m.items,0)->label,"Momentum"));
+ MenuItemArray_reset(m.items);
  for(int i=0;i<25;i++){MenuItem* item=MenuItemArray_push_new(m.items);item->label="An app with a very long name";}
  for(int i=0;i<25;i++){m.position=i;canvas_clear(&c);menu_draw_echo(&c,&m);assert(drawn(&c,"Tools"));}
- MenuItemArray_clear(m.items);furi_string_free(m.title);puts("PASS: Tools menu bounds and scrolling");
+ MenuItemArray_clear(m.items);furi_string_free(m.title);puts("PASS: Tools menu bounds, scrolling and Echo label with legacy identifier preserved");
 }
 """
 with tempfile.TemporaryDirectory() as temporary:

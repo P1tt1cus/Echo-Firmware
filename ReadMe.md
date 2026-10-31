@@ -1,237 +1,114 @@
-# Echo firmware
+# Echo Firmware
 
-Personal maintained fork: [P1tt1cus/Momentum-Firmware](https://github.com/P1tt1cus/Momentum-Firmware).
-Our default branch is `studio`; `origin` points to our fork and `upstream` to
-Next-Flip. The initial branch starts at
-**d3f89dfe2ef6b01839201598e9be1590cba80322**, the installed Momentum build from
-2026-08-18: **f7 / API 87.1**. `studio-target.json` records this baseline.
+**A personal Flipper Zero firmware with a consistent interface, a quieter visual identity, and tools organised around how you use them.**
 
-Echo 1.1 adds shared app/settings menus to the Echo launcher, pulse theme and identity.
-See [Echo build and installation notes](documentation/echo/README.md).
-It is maintained alongside [Echo Radio](https://github.com/P1tt1cus/flipperzero-wifi-marauder)
-and [our ESP32 firmware](https://github.com/P1tt1cus/ESP32Marauder).
+[![Firmware build](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml/badge.svg?branch=studio)](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml)
+[![Lint](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/lint.yml/badge.svg?branch=studio)](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/lint.yml)
 
-Initialize dependencies using `git submodule update --init --recursive`, then
-follow the fbt build instructions below. Keep dependency revisions pinned.
-When changing exported APIs, produce a matching SDK and rebuild the companion.
-Review upstream updates on an integration branch before merging into `studio`.
+Echo is an independently maintained fork of [Momentum](https://github.com/Next-Flip/Momentum-Firmware), built on the Flipper Zero firmware ecosystem. It keeps that foundation and adds its own launcher, app dashboards, shared menus, desktop theme and installer.
 
-Our fork allows owner-requested AI-assisted maintenance. The original policy
-is preserved in `documentation/UPSTREAM_AGENT_POLICY.md`; our changes are not
-submitted upstream under that policy. Original source licenses and attribution
-remain in place.
+**Current version: Echo 1.1 · Flipper Zero / f7 · API 87.1 · Maintained branch: `studio`**
 
----
+## The Echo experience
 
-## Upstream documentation
+Press the centre button from the desktop to open five destinations:
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset=".github/assets/logo_light.png">
-    <img
-        alt="Momentum Firmware"
-        src=".github/assets/logo_dark.png">
-  </picture>
-</p>
+| Destination | Opens |
+| --- | --- |
+| **Radio** | Echo Radio, the separately installed ESP32 companion |
+| **Remotes** | Infrared remotes and saved controls |
+| **Sessions** | Echo Radio's saved captures and logs |
+| **Tools** | The full app menu, including NFC, Sub-GHz, RFID and other installed tools |
+| **Settings** | System settings |
 
-<h2 align="center">
-  <a href="#Install">Install</a> · <a href="#list-of-changes">Features</a> · <a href="https://discord.gg/momentum">Discord</a> · <a href="#%EF%B8%8F-support">Donate</a>
-</h2>
+Echo's native firmware works without an ESP32. Radio operations require the companion and compatible external hardware; browsing existing session files does not require a responding board.
 
-This custom firmware is based on the [Official Firmware](https://github.com/flipperdevices/flipperzero-firmware) for [Flipper Zero](https://flipperzero.one/), and includes most of the awesome features from [Unleashed](https://github.com/DarkFlippers/unleashed-firmware). It is a direct continuation of the Xtreme firmware, built by the same (and only) developers who made that project special.
+### A consistent interface
 
-<br>
-<h2 align="center">Modus Operandi</h2>
+- **App dashboards:** Remotes, NFC and Sub-GHz share four visible actions, descriptions, status and predictable navigation. Echo Radio uses the same design.
+- **Shared menus:** apps using the standard Submenu and VariableItemList controls inherit Echo titles, selection counts, scrolling and contextual button hints.
+- **Desktop identity:** an original monochrome pulse animation reveals the Echo wordmark.
+- **Installer:** Echo branding, real progress, readable stages and retained error diagnostics, retry and exit controls.
+- **Compatibility:** the maintained build retains API 87.1 and existing file formats. Internal application IDs and settings paths keep their established names so saved configuration continues to work.
 
-The goal of this firmware is to constantly push the bounds of what is possible with Flipper Zero, driving the innovation of many new groundbreaking features, while maintaining the easiest and most customizable user experience of any firmware. Fixing bugs promptly and ensuring a stable and compatible system is also of our utmost importance.
+Custom game screens, live views and file browsers keep their own rendering and controls. Echo does not replace every third-party interface.
 
-- <h4>Feature-rich: We include all third-party features and apps as long as they fulfill a useful purpose and they work correctly, aswell as implement ourselves many new exciting functionalities.</h4>
+![Storyboard of the Echo desktop pulse animation](documentation/echo/pulse-preview.png)
 
-- <h4>Stable: We ensure the most stable experience possible by having an actual understanding of what's going on, and proactively making all tweaks and additions backwards-, and inter-, compatible.</h4>
+### Controls
 
-- <h4>Customizable: You can tweak just about everything you see: add/remove apps from the menu, change the animations, replace icon graphics, change your Flipper's name, change how the main menu looks, setup different keybinds like never before, and so much more. All on-device, with no complicated configuration.</h4>
+In Echo app dashboards, **Up/Down** selects an action, **Left/Right** jumps to the first or last action, **OK** opens it, and **Back** returns. Settings retain Left/Right for changing values. Live tools retain their app-specific controls.
 
-<br>
+## Build Echo
 
-Note that mentioned below are only a few of our staple additions to the firmware. For a full list check [down here](https://github.com/Next-Flip/Momentum-Firmware#List-of-Changes).
+Clone this fork's maintained branch, including pinned dependencies:
 
-<br>
-<h2 align="center">Momentum Settings</h2>
-
-We offer a powerful and easy-to-use application tailor-made for our firmware, that lets you configure everything you could dream of, and more:
-
-<img src=".github/assets/settings.png" align="left" height="160vh"/>
-<img align="left" height="180vh" width="10" src="https://upload.wikimedia.org/wikipedia/commons/3/3d/1_120_transparent.png">
-
-- <ins><b>Interface:</b></ins> Tweak every part of your Flipper, from the desktop animations, to the main menu, lockscreen behavior, file browser, etc.
-
-- <ins><b>Protocols:</b></ins> Configure SubGhz settings, add/remove custom frequencies, extend SubGhz frequencies to 281-361, 378-481, 749-962 MHz and setup which GPIO pins are used by different external modules.
-
-- <ins><b>Misc:</b></ins> Everything else that doesn't fit the previous categories. Change your Flipper's name, XP level, screen options, and configure the <a href="https://github.com/Z3BRO/Flipper-Zero-RGB-Backlight">RGB backlight</a>.
-
-<br>
-
-<br>
-
-<h2 align="center">Animations / Asset Packs</h2>
-
-We created our own improved Animation / Asset system that lets you create and cycle through your own `Asset Packs` with only a few button presses, allowing you to easily load custom Animations, Icons and Fonts like never before. Think of it as a Theme system that's never been easier.
-
-<img src=".github/assets/packs-folder.png" align="left" width="200px"/>
-You can easily create your own pack, or find some community-made ones on <b><a href="https://momentum-fw.dev/asset-packs">our website</a> or on Discord</b>. Check <a href="https://github.com/Next-Flip/Momentum-Firmware/blob/dev/documentation/file_formats/AssetPacks.md">here</a> for a tutorial on creating your own. Essentially, each <code>Asset Pack</code> can configure its own <code>Anims</code>, <code>Icons</code> & <code>Fonts</code>.
-
-<br clear="left"/>
-
-<br>
-
-<img src=".github/assets/packs-select.png" align="left" width="200px"/>
-Once you have some asset packs, upload them to your Flipper in <code>SD/asset_packs</code> (if you did this right you should see <code>SD/asset_packs/PackName/Anims</code> and/or <code>SD/asset_packs/PackName/Icons</code>). Alternatively, install directly using the website.
-
-
-<br clear="left"/>
-
-<br>
-
-<img src=".github/assets/packs-done.png" align="left" width="200px"/>
-After installing the packs to Flipper, hit the <code>Arrow Up</code> button on the main menu and go to <code>Momentum Settings > Interface > Graphics</code>. Here choose which asset pack you want and tweak the other settings how you prefer, then exit the app to reboot and enjoy your fully customized Flipper!
-
-<br clear="left"/>
-
-<br>
-
-<h2 align="center">Bad Keyboard</h2>
-
-<img src=".github/assets/badkb.png" align="left" width="250px"/>
-BadUSB is a great app, but it lacks a lot of options. Bad-KB allows you to customize all USB and Bluetooth parameters for your attacks.
-
-In Bluetooth mode it allows you to spoof the display name and MAC address of the device to whatever you want. Showing up as a portable speaker or a wireless keyboard is easily doable, allowing you to get the attention of your target without needing a cable at hand.
-
-In USB mode it also enables additional functionality to spoof the manufacturer and product names, as well as vendor and product IDs (VID/PID).
-
-<br>
-
-<h2 align="center">List of changes</h2>
-
-There are too many to name them all, this is a **non-comprehensive** list of the **most notable from an end-user perspective**. For a more detailed list, you can read through the [**changelogs**](https://github.com/Next-Flip/Momentum-Firmware/releases) and commits/code. Also, you can find a **feature comparison with other firmwares** on [our website](https://momentum-fw.dev/).
-
-Note that this repo is always updated with the great work from our friends at [Unleashed](https://github.com/DarkFlippers/unleashed-firmware) and the latest changes from [OFW](https://github.com/flipperdevices/flipperzero-firmware). Below are mentioned only **our** changes that we can actually be credited for, so make sure to check their fantastic additions aswell. And a huge thank you to both teams!
-
-```txt
-[Added]
-
-- Momentum App (Easy configuration of features and behavior of the firmware)
-- Asset Packs (Unparalleled theming and customization)
-- More UI customization, redesigns and optimizations
-- Bad-Keyboard App
-- BLE Spam App
-- FindMy Flipper App
-- NFC Maker App
-- Wardriver App
-- File Search across SD Card
-- Additional NFC parsers and protocols
-- NFC Type 4 protocol and NTAG4xx support
-- Subdriving (saving GPS coordinates for Sub-GHz)
-- Easy spoofing (Name, MAC address, Serial number)
-- Video Game Module color configuration right from Flipper
-- Enhanced RGB Backlight modes (Full customization & Rainbow mode)
-- File management on device (Cut, Copy, Paste, Show, New Dir, etc.)
-- Remember Infrared GPIO settings and add IR Blaster support in apps
-- Advanced Security measures (Lock on Boot, reset on false pins, etc.)
-- Disk Image management (Mount and view image contents, open in Mass Storage)
-- Extended JavaScript API (Support for UsbDisk/Mass Storage, File operations)
-```
-```txt
-[Updated]
-
-- Enhanced WiFi support for easiest setup ever
-- Extended keyboard with cursor movement and symbols
-- File Browser with Sorting, More supported File Types
-- Advanced and optimized Level System (Up to 30 levels)
-- Desktop Keybind system for full key and press/hold remapping
-- Storage backend with instant rename and virtual mounting for disk images
-- Expanded Sub-GHz App (Duplicate detection & Ignore, Autosave, History improvements)
-- Improved Error Messages (Showing source file paths)
-```
-```txt
-[Removed]
-
-- Unused Dummy Mode
-- Broken or Superfluous apps
+```sh
+git clone --branch studio --recurse-submodules https://github.com/P1tt1cus/Echo-Firmware.git
+cd Echo-Firmware
+FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage SKIP_EXTERNAL=1
 ```
 
-<br>
+The repository's fbt setup selects toolchain 39. The maintained source baseline is Momentum `d3f89dfe`, targeting **f7 / API 87.1**. See [studio-target.json](studio-target.json) for the compatibility record. Keep submodules at their checked-in revisions.
 
-<h2 align="center">Install</h2>
+The firmware-only update is generated under:
 
-There are 4 methods to install Momentum, we recommend you use the **Web Updater**, but choose whichever one you prefer:
-
-> <details><summary><code>Web Updater (Chrome)</code></summary><ul>
->   <li>Make sure qFlipper is closed</li>
->   <li>Open the <a href="https://momentum-fw.dev/update">Web Updater</a></li>
->   <li>Click <code>Connect</code> and select your Flipper from the list</li>
->   <li>Select which update <code>Channel</code> you prefer from the dropdown</li>
->   <li>Click <code>Install</code> and wait for the update to complete</li>
-> </ul></details>
-
-> <details><summary><code>Flipper Lab/App (chrome/mobile)</code></summary><ul>
->   <li>(Desktop) Make sure qFlipper is closed</li>
->   <li>(Mobile) Make sure you have the <a href="https://docs.flipper.net/mobile-app">Flipper Mobile App</a> installed and paired</li>
->   <li>Open the <a href="https://github.com/Next-Flip/Momentum-Firmware/releases/latest">latest release page</a></li>
->   <li>Click the <code>☁️ Flipper Lab/App (chrome/mobile)</code> link</li>
->   <li>(Desktop) Click <code>Connect</code> and select your Flipper from the list</li>
->   <li>(Desktop) Click <code>Install</code> and wait for the update to complete</li>
->   <li>(Mobile) Accept the prompt to open the link in the Flipper Mobile App</li>
->   <li>(Mobile) Confirm to proceed with the install and wait for the update to complete</li>
-> </ul></details>
-
-> <details><summary><code>qFlipper Package (.tgz)</code></summary><ul>
->   <li>Download the qFlipper package (.tgz) from the <a href="https://github.com/Next-Flip/Momentum-Firmware/releases/latest">latest release page</a></li>
->   <li>Make sure the <code>WebUpdater</code> and <code>lab.flipper.net</code> are closed</li>
->   <li>Open <a href="https://flipperzero.one/update">qFlipper</a> and connect your Flipper</li>
->   <li>Click <code>Install from file</code></li>
->   <li>Select the .tgz you downloaded and wait for the update to complete</li>
-> </ul></details>
-
-> <details><summary><code>Zipped Archive (.zip)</code></summary><ul>
->   <li>Download the zipped archive (.zip) from the <a href="https://github.com/Next-Flip/Momentum-Firmware/releases/latest">latest release page</a></li>
->   <li>Extract the archive. This is now your new Firmware folder</li>
->   <li>Open <a href="https://flipperzero.one/update">qFlipper</a>, head to <code>SD/update</code> and simply move the firmware folder there</li>
->   <li>On the Flipper, hit the <code>Arrow Down</code> button, this will get you to the file menu. In there simply search for your updates folder</li>
->   <li>Inside that folder, select the Firmware you just moved onto it, and run the file thats simply called <code>Update</code></li>
-> </ul></details>
-
-<br>
-
-<h2 align="center">Build it yourself</h2>
-
-```bash
-To download the repository:
-$ git clone --recursive --jobs 8 https://github.com/Next-Flip/Momentum-Firmware.git
-$ cd Momentum-Firmware/
-
-To flash directly to the Flipper (Needs to be connected via USB, qFlipper closed)
-$ ./fbt flash_usb_full
-
-To compile a TGZ package
-$ ./fbt updater_package
-
-To build and launch a single app:
-$ ./fbt launch APPSRC=your_appid
+```text
+dist/f7-C/f7-update-echo-1.1-<commit>/
+  update.fuf
+  firmware.dfu
+  updater.bin
 ```
 
-<h2 align="center">Stargazers over time</h2>
+This package updates the MCU firmware and updater; it does not replace the Bluetooth radio stack or SD-card resources/apps. Build the native dashboard apps and Echo's configuration app separately:
 
-[![Stargazers over time](https://starchart.cc/Next-Flip/Momentum-Firmware.svg?variant=adaptive)](https://starchart.cc/Next-Flip/Momentum-Firmware)
+```sh
+FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz fap_momentum_app SKIP_EXTERNAL=1
+```
 
-<h2 align="center">❤️ Support</h2>
+Their FAPs are written to `build/f7-firmware-C/.extapps/`. Successful [Echo firmware CI runs](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml) also provide an `echo-f7-api87.1` artifact containing the update and these four apps. CI artifacts are development builds, not a separate stable release channel.
 
-If you enjoy the firmware please __**spread the word!**__ And if you really love it, maybe consider donating to the team? :D
+## Install
 
-> **[Ko-fi](https://ko-fi.com/willyjl)**: One-off or Recurring, No signup required
+Use an **Echo build from this fork**. Momentum's web updater distributes upstream firmware and does not install Echo.
 
-> **[PayPal](https://paypal.me/willyjl1)**: One-off, Signup required
+1. Copy the generated update directory to `SD/update/` using qFlipper's file manager.
+2. On the Flipper, open the archive/file browser, navigate into that directory and run `update.fuf` (shown as **Update**).
+3. Confirm **Install Echo** and let the update finish through its restart stages.
+4. Install the matching app FAPs and Echo asset pack separately using the [build and installation guide](documentation/echo/README.md#build-and-install).
 
-> **BTC**: `1EnCi1HF8Jw6m2dWSUwHLbCRbVBCQSyDKm`
+The guide covers exact app destinations, theme generation, device naming and validation. Existing devices retain their configured name until it is changed; installing Echo does not silently rename someone else's device. The Echo desktop theme is selected as an asset pack.
 
-**Thank you <3**
+The Radio and Sessions shortcuts expect [Echo Radio](https://github.com/P1tt1cus/flipperzero-wifi-marauder), installed at `/ext/apps/GPIO/marauder_studio.fap`. It is maintained separately. [The ZY-ESP32 firmware fork](https://github.com/P1tt1cus/ESP32Marauder) is only needed for that external board.
+
+## Validation and development
+
+Run the host checks from the repository root. The asset validator needs Pillow, heatshrink2 and colorlog; the host GUI checks need a C compiler with sanitizer support.
+
+```sh
+python3 scripts/echo_menu_test.py
+python3 scripts/echo_dashboard_test.py
+python3 scripts/echo_shared_menu_test.py
+python3 scripts/echo_installer_test.py --package-check
+python3 scripts/echo_validate.py
+```
+
+Run the package check after building the updater. CI runs these checks alongside the pinned firmware/app builds. Build and host-test success are recorded separately from actual on-device verification.
+
+Start changes from `studio` and target pull requests here. Review upstream updates on a separate integration branch; preserve Echo changes and dependency pins. Read [AGENTS.md](AGENTS.md) and the [Echo implementation guide](documentation/echo/README.md) before maintenance.
+
+The proposed Echo BLE Lab, identity-testing workflows and Vox integration are **not implemented features**. Existing upstream Bluetooth tools remain available according to the installed app set.
+
+## Issues and support
+
+Report Echo-specific bugs and suggestions in [this repository's issues](https://github.com/P1tt1cus/Echo-Firmware/issues). Include the Echo version, source commit, app involved and steps to reproduce. Distinguish built-in Flipper behaviour from companion or external-board behaviour.
+
+This is a personal fork, not an official Flipper Devices or Momentum release. It has no separate hosted web installer or upstream support commitment.
+
+## Credits and licence
+
+Echo builds on [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [Flipper Devices firmware](https://github.com/flipperdevices/flipperzero-firmware), and the work of the [Unleashed](https://github.com/DarkFlippers/unleashed-firmware), Xtreme and third-party app communities. Their original copyright notices, source attribution and component licences remain in place.
+
+The firmware is distributed under [GNU GPL v3](LICENSE), with individual dependencies and assets retaining their respective licences. The [archived Momentum README](documentation/UPSTREAM_README.md) preserves upstream project history and support links.
+
+This fork permits owner-requested AI-assisted maintenance under [its own instructions](AGENTS.md). The [original upstream contribution policy](documentation/UPSTREAM_AGENT_POLICY.md) is retained as a reference; this fork's AI-assisted changes are not submitted upstream under that policy.
