@@ -304,3 +304,45 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Shared filename changes are in the built core only; installed core remains
   `13e6960e`. Finish Sub-GHz RAW worker and safe save/rename review before installing
   the combined package. Keep physical RF/IR/HID checks separate from these UI tests.
+
+
+### Stage 7 — RAW file worker and offline decoding
+
+- RAW startup now validates the exact type/version/protocol and buffers the first
+  valid record before returning success. Missing, empty, malformed and short-read
+  files fail startup; callers release the worker even when no thread was started.
+  Offline decode clears its freed pointer, reports File error, and does not wait
+  for a radio device. App exit also releases a remaining decode worker.
+- Buffered file reads bound each line to 6144 bytes and initial metadata through
+  the first record to 16384 bytes. Each RAW record must contain 1–512 non-zero
+  signed decimal durations with magnitude at most 1,000,000 microseconds. These
+  bounds cover native recordings; unusual externally generated files outside
+  these limits now reject rather than being truncated or converted to 100 us.
+  Entire records validate before any of their pulses enter the queue.
+- EOF and late read failures explicitly terminate the consumer instead of leaving
+  it waiting indefinitely. A second queue read after observing producer completion
+  preserves a last pulse published concurrently with an empty receive. Stop checks
+  bound producer work between reads/queue retries; an individual SD call can still
+  block. The legacy completion callback fires once and must remain nonblocking.
+- Progress is labelled Read, with bounded file offsets and wide multiplication;
+  it no longer subtracts binary queue bytes from text offsets or divides by zero.
+  Decode distinguishes File error from Done. The existing API87.1 cannot convey a
+  detailed late worker error to the TX scene: transmission terminates, but a late
+  failure may still be presented as completion there. Startup validates only the
+  first record, not the whole file before transmission. No RF test was run.
+- Offline duplicate removal now shares live reception's exact capture identity
+  rather than deleting different data that happens to share a protocol/hash.
+- `echo_subghz_file_test.py`: PASS, production worker and encoder/decode functions
+  under ASAN/UBSAN with memory storage and deterministic scheduling adapters.
+  Covers corrupt/empty/oversized/NUL/short reads, missing files, queue cancellation,
+  final-pulse scheduling edge, one callback, progress arithmetic, device reset,
+  100 reuse cycles and 100 failed decode starts. This is not thread/DMA hardware
+  validation. Added to firmware CI.
+- Existing Sub-GHz history/control and Replay Bench parser/control suites pass.
+  Core, firmware-only updater, Sub-GHz 1.4 and Replay Bench build for API87.1;
+  Echo asset and installer package checks pass. These changes are not installed:
+  device core remains `13e6960e`, native Sub-GHz remains installed 1.3. Deploy the
+  new Sub-GHz FAP with the combined core update and verify synthetic offline decode.
+- Prior head `868394fc9` CI passed: firmware `41230506419`, lint `41230506422`.
+  Next: RFID original-preserving save/rename, NFC/Sub-GHz save audit, then combined
+  installation, browser/performance/navigation regression and physical fixtures.
