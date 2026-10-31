@@ -1,3 +1,4 @@
+#include "../echo/echo_dashboard.h"
 #include "infrared_app_i.h"
 
 #include "infrared_settings.h"
@@ -185,6 +186,9 @@ static InfraredApp* infrared_alloc(void) {
     infrared->brute_force = infrared_brute_force_alloc();
 
     infrared->submenu = submenu_alloc();
+    infrared->dashboard = echo_dashboard_alloc();
+    view_dispatcher_add_view(
+        infrared->view_dispatcher, InfraredViewDashboard, infrared->dashboard->view);
     view_dispatcher_add_view(
         view_dispatcher, InfraredViewSubmenu, submenu_get_view(infrared->submenu));
 
@@ -252,6 +256,8 @@ static void infrared_free(InfraredApp* infrared) {
 
     view_dispatcher_remove_view(view_dispatcher, InfraredViewSubmenu);
     submenu_free(infrared->submenu);
+    view_dispatcher_remove_view(infrared->view_dispatcher, InfraredViewDashboard);
+    echo_dashboard_free(infrared->dashboard);
 
     view_dispatcher_remove_view(view_dispatcher, InfraredViewTextInput);
     text_input_free(infrared->text_input);

@@ -86,6 +86,7 @@ typedef enum {
     SubGhzViewIdFrequencyAnalyzer,
     SubGhzViewIdReadRAW,
 
+    SubGhzViewIdDashboard,
 } SubGhzViewId;
 
 /** SubGhz load type file */

@@ -1,3 +1,4 @@
+#include "../echo/echo_dashboard.h"
 /* Abandon hope, all ye who enter here. */
 
 #include <furi/core/log.h>
@@ -127,6 +128,9 @@ SubGhz* subghz_alloc(bool alloc_for_tx_only) {
     if(!alloc_for_tx_only) {
         // SubMenu
         subghz->submenu = submenu_alloc();
+        subghz->dashboard = echo_dashboard_alloc();
+        view_dispatcher_add_view(
+            subghz->view_dispatcher, SubGhzViewIdDashboard, subghz->dashboard->view);
         view_dispatcher_add_view(
             subghz->view_dispatcher, SubGhzViewIdMenu, submenu_get_view(subghz->submenu));
 
@@ -353,6 +357,8 @@ void subghz_free(SubGhz* subghz, bool alloc_for_tx_only) {
         // Submenu
         view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewIdMenu);
         submenu_free(subghz->submenu);
+        view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewIdDashboard);
+        echo_dashboard_free(subghz->dashboard);
     }
     // Popup
     view_dispatcher_remove_view(subghz->view_dispatcher, SubGhzViewIdPopup);

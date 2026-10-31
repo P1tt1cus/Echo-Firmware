@@ -138,6 +138,8 @@ typedef struct {
     NfcMfUltralightCWriteDictState dict_state; /**< Which dict is open for write-phase auth. */
 } NfcMfUltralightCWriteContext;
 
+typedef struct EchoDashboard EchoDashboard;
+
 struct NfcApp {
     DialogsApp* dialogs;
     Storage* storage;
@@ -192,6 +194,7 @@ struct NfcApp {
     FuriTimer* timer;
 
     bool fav_timeout;
+    EchoDashboard* dashboard;
 };
 
 typedef enum {
@@ -205,6 +208,7 @@ typedef enum {
     NfcViewWidget,
     NfcViewDictAttack,
     NfcViewDetectReader,
+    NfcViewDashboard,
 } NfcView;
 
 typedef enum {
