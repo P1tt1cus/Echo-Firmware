@@ -27,6 +27,7 @@ jobs:
           python3 scripts/echo_replay_test.py
           python3 scripts/echo_replay_control_test.py
           python3 scripts/echo_shared_menu_test.py
+          python3 scripts/echo_browser_test.py
           python3 scripts/echo_installer_test.py --package-check
       - uses: actions/upload-artifact@v4
         with:

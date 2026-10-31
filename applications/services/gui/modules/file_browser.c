@@ -60,12 +60,15 @@ static void BrowserItem_t_init_set(BrowserItem_t* obj, const BrowserItem_t* src)
 }
 
 static void BrowserItem_t_set(BrowserItem_t* obj, const BrowserItem_t* src) {
+    if(obj == src) return;
     obj->type = src->type;
     furi_string_set(obj->name, src->name);
     furi_string_set(obj->display_name, src->display_name);
     if(src->custom_icon_data) {
+        if(!obj->custom_icon_data) obj->custom_icon_data = malloc(CUSTOM_ICON_MAX_SIZE);
         memcpy(obj->custom_icon_data, src->custom_icon_data, CUSTOM_ICON_MAX_SIZE);
     } else {
+        free(obj->custom_icon_data);
         obj->custom_icon_data = NULL;
     }
 }
@@ -316,6 +319,7 @@ static bool browser_is_item_in_array(FileBrowserModel* model, uint32_t idx) {
 }
 
 static bool browser_is_list_load_required(FileBrowserModel* model) {
+    if(model->item_cnt == 0) return false;
     size_t array_size = items_array_size(model->items);
     if((array_size > 0) && (!model->is_root) && (model->array_offset == 0)) {
         array_size--;
@@ -490,8 +494,11 @@ static void
             FileBrowserModel * model,
             {
                 if(model->item_cnt <= BROWSER_SORT_THRESHOLD) {
+                    // The directory may change between counting and loading (or the SD
+                    // may disappear). Only index entries that actually arrived.
+                    const size_t loaded_count = items_array_size(model->items);
                     FuriString* selected = NULL;
-                    if(model->item_idx > 0) {
+                    if(model->item_idx >= 0 && (size_t)model->item_idx < loaded_count) {
                         selected = furi_string_alloc_set(
                             items_array_get(model->items, model->item_idx)->name);
                     }
@@ -499,13 +506,17 @@ static void
                     items_array_sort(model->items);
 
                     if(selected != NULL) {
-                        for(uint32_t i = 0; i < model->item_cnt; i++) {
+                        for(size_t i = 0; i < loaded_count; i++) {
                             if(!furi_string_cmp(items_array_get(model->items, i)->name, selected)) {
                                 model->item_idx = i;
                                 break;
                             }
                         }
+                        furi_string_free(selected);
                     }
+                    model->item_cnt = loaded_count;
+                    model->item_idx =
+                        loaded_count ? CLAMP(model->item_idx, (int32_t)loaded_count - 1, 0) : 0;
                 }
                 if(browser_is_list_load_required(model)) {
                     model->list_loading = true;
@@ -556,6 +567,8 @@ static void browser_draw_loading(Canvas* canvas, FileBrowserModel* model) {
     uint8_t y = 64 / 2 - 24 / 2;
 
     canvas_draw_icon(canvas, x, y, &A_Loading_24);
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str_aligned(canvas, 64, 60, AlignCenter, AlignBottom, "Back cancels");
 }
 
 static void browser_draw_list(Canvas* canvas, FileBrowserModel* model) {
@@ -666,16 +679,25 @@ static bool file_browser_view_input_callback(InputEvent* event, void* context) {
     furi_check(browser);
     bool consumed = false;
     bool is_loading = false;
+    bool is_empty = false;
 
     with_view_model(
         browser->view,
         FileBrowserModel * model,
-        { is_loading = model->folder_loading || model->list_loading; },
+        {
+            is_loading = model->folder_loading || model->list_loading;
+            is_empty = model->item_cnt == 0;
+        },
         false);
 
     if(is_loading && event->key != InputKeyBack) {
         return true; // Return without doing anything
+    } else if(is_loading && event->key == InputKeyBack) {
+        // Leave the browser even in a nested folder. Its owner stops and joins
+        // the worker; queueing a parent-directory scan would only prolong loading.
+        return false;
     } else if(event->key == InputKeyUp || event->key == InputKeyDown) {
+        if(is_empty) return true;
         if(event->type == InputTypeShort || event->type == InputTypeRepeat) {
             with_view_model(
                 browser->view,
