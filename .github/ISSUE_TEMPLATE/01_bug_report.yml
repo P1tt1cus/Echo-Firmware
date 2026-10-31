@@ -1,11 +1,11 @@
 name: Bug report
-description: File a bug reports regarding the firmware.
+description: Report a bug in Echo Firmware.
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to fill out an issue, this template is meant for any issues related to the Flipper Zero unleashed firmware.
+        Report Echo-specific issues here. Include the affected app and whether external hardware is involved.
   - type: textarea
     id: description
     attributes:
@@ -21,15 +21,14 @@ body:
       placeholder: |
         1. Switch on...
         2. Press button '....'
-        3. Wait for the moon phase
-        4. It burns
+        3. Observe the result
     validations:
       required: true
   - type: input
     id: target
     attributes:
-      label: Target
-      description: Specify the target
+      label: Echo version and hardware
+      description: Include firmware version, commit, app version and any external board.
       # Target seems to be largely ignored by outside sources.
   - type: textarea
     id: logs

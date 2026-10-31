@@ -1,17 +1,17 @@
-# Studio Flipper firmware maintenance
+# Echo firmware maintenance
 
-This is P1tt1cus's personal Momentum fork, maintained with the owner's explicit
+This is Echo Firmware, a personal Momentum fork, maintained with the owner's explicit
 request for AI-assisted development. These instructions apply to this fork.
 The original project's contribution policy is preserved in
 `documentation/UPSTREAM_AGENT_POLICY.md`; do not submit AI-authored work upstream.
 Preserve all source licenses and attribution.
 
-- `origin`: https://github.com/P1tt1cus/Momentum-Firmware
+- `origin`: https://github.com/P1tt1cus/Echo-Firmware
 - `upstream`: https://github.com/Next-Flip/Momentum-Firmware
 - Maintained/default branch: `studio`. Start feature branches here; target PRs here.
 - Initial base: `d3f89dfe2ef6b01839201598e9be1590cba80322`, matching the installed
   Momentum build dated 2026-08-18. Target f7, API 87.1.
-- Read the Studio section of ReadMe.md and `studio-target.json` before work.
+- Read ReadMe.md and `studio-target.json` before work.
 - Paired companion: https://github.com/P1tt1cus/flipperzero-wifi-marauder
 - Paired ESP32: https://github.com/P1tt1cus/ESP32Marauder (ZY-ESP32, LDDB).
 - Preserve submodule pins. Do not silently advance dependencies or install a

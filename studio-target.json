@@ -1,4 +1,6 @@
 {
+  "name": "Echo Firmware",
+  "repository": "https://github.com/P1tt1cus/Echo-Firmware",
   "profile": "studio-flipper-f7",
   "upstream": "https://github.com/Next-Flip/Momentum-Firmware",
   "baseline_commit": "d3f89dfe2ef6b01839201598e9be1590cba80322",

@@ -2,12 +2,13 @@ name: "Release"
 
 on:
   release:
-    if: github.repository == 'Next-Flip/Momentum-Firmware'
     types:
       - released
 
 jobs:
   release:
+    # Historical upstream publishing pipeline; never publish Momentum assets as Echo.
+    if: github.repository == 'Next-Flip/Momentum-Firmware'
     permissions:
       contents: write
     runs-on: ubuntu-latest

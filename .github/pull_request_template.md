@@ -1,9 +1,12 @@
-# What's new
+## Change
 
-- [Describe changes here]
+Describe the problem and the resulting Echo behaviour.
 
------
-# For the reviewer
+## Validation
 
-- [ ] I've uploaded the firmware with this patch to a device and verified its functionality
-- [ ] I've confirmed the bug to be fixed / feature to be stable
+Record builds and host checks, plus on-device checks if performed.
+State explicitly when a change has not been installed or tested on hardware.
+
+## Compatibility
+
+Note any changes to API 87.1, saved data, settings, app paths or dependency pins.

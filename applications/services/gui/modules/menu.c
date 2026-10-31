@@ -50,11 +50,13 @@ static void menu_process_ok(Menu* menu);
 
 static void menu_get_name(MenuItem* item, FuriString* name, bool shorter) {
     furi_string_set(name, item->label);
+    // Keep the loader identifier for saved menus and keybinds; brand its display name.
+    if(!furi_string_cmp(name, "Momentum")) {
+        furi_string_set(name, "Echo");
+        return;
+    }
     if(shorter) {
-        if(!furi_string_cmp(name, "Momentum")) {
-            furi_string_set(name, "MNTM");
-            return;
-        } else if(!furi_string_cmp(name, "125 kHz RFID")) {
+        if(!furi_string_cmp(name, "125 kHz RFID")) {
             furi_string_set(name, "RFID");
             return;
         } else if(!furi_string_cmp(name, "Sub-GHz")) {
@@ -124,7 +126,8 @@ static void menu_draw_echo(Canvas* canvas, MenuModel* model) {
             canvas_set_color(canvas, ColorWhite);
         }
         echo_menu_icon(canvas, 4, y + 1, item->label);
-        FuriString* label = furi_string_alloc_set(item->label);
+        FuriString* label =
+            furi_string_alloc_set(strcmp(item->label, "Momentum") == 0 ? "Echo" : item->label);
         elements_scrollable_text_line(
             canvas,
             16,

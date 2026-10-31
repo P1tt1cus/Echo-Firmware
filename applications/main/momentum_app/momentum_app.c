@@ -164,7 +164,7 @@ static void
     CharList_push_back(app->mainmenu_app_exes, strdup(furi_string_get_cstr(exe)));
     // Display logic mimics applications/services/gui/modules/menu.c
     if(furi_string_equal(label, "Momentum")) {
-        furi_string_set(label, "MNTM");
+        furi_string_set(label, "Echo");
     } else if(furi_string_equal(label, "125 kHz RFID")) {
         furi_string_set(label, "RFID");
     } else if(furi_string_equal(label, "Sub-GHz")) {
