@@ -1,3 +1,30 @@
+# Studio Flipper firmware
+
+Personal maintained fork: [P1tt1cus/Momentum-Firmware](https://github.com/P1tt1cus/Momentum-Firmware).
+Our default branch is `studio`; `origin` points to our fork and `upstream` to
+Next-Flip. The initial branch starts at
+**d3f89dfe2ef6b01839201598e9be1590cba80322**, the installed Momentum build from
+2026-08-18: **f7 / API 87.1**. `studio-target.json` records this baseline.
+
+This setup changes documentation and records the target. No custom firmware
+binary has been built or flashed yet. Future changes are maintained here,
+alongside [Marauder Studio](https://github.com/P1tt1cus/flipperzero-wifi-marauder)
+and [our ESP32 firmware](https://github.com/P1tt1cus/ESP32Marauder).
+
+Initialize dependencies using `git submodule update --init --recursive`, then
+follow the fbt build instructions below. Keep dependency revisions pinned.
+When changing exported APIs, produce a matching SDK and rebuild the companion.
+Review upstream updates on an integration branch before merging into `studio`.
+
+Our fork allows owner-requested AI-assisted maintenance. The original policy
+is preserved in `documentation/UPSTREAM_AGENT_POLICY.md`; our changes are not
+submitted upstream under that policy. Original source licenses and attribution
+remain in place.
+
+---
+
+## Upstream documentation
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo_dark.png">

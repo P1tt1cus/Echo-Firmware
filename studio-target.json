@@ -1,0 +1,11 @@
+{
+  "profile": "studio-flipper-f7",
+  "upstream": "https://github.com/Next-Flip/Momentum-Firmware",
+  "baseline_commit": "d3f89dfe2ef6b01839201598e9be1590cba80322",
+  "baseline_build_date": "2026-08-18",
+  "hardware_target": "f7",
+  "api_version": "87.1",
+  "companion_sdk_release": "mntm-012",
+  "companion_repo": "https://github.com/P1tt1cus/flipperzero-wifi-marauder",
+  "esp32_firmware_repo": "https://github.com/P1tt1cus/ESP32Marauder"
+}
