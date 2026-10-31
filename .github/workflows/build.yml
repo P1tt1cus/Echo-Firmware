@@ -32,4 +32,5 @@ jobs:
             build/f7-firmware-C/.extapps/infrared.fap
             build/f7-firmware-C/.extapps/nfc.fap
             build/f7-firmware-C/.extapps/subghz.fap
+          include-hidden-files: true
           if-no-files-found: error
