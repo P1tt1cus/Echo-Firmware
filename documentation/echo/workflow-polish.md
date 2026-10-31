@@ -255,3 +255,25 @@ not in source. Never commit captures, credential data or pairing secrets.
   arbitrary 100 us pulses. Progress subtracts binary buffered bytes from a text-file
   offset and can underflow/divide by zero. Fix with explicit validation and bounded
   progress semantics while preserving the existing public API.
+
+- IR file fix: reject zero/oversized timing counts, invalid carrier/duty values
+  (including NaN/infinity), missing data and zero pulses before replacing the
+  current signal. A rejected read leaves prior data intact and returns an error.
+  Valid file timings transfer ownership directly, avoiding the second allocation
+  and copy. Public raw setter retains its clamping policy but preserves old data
+  for invalid lengths and handles input aliasing safely. 32-bit protocol masks no
+  longer shift by the width of the target integer.
+- IR direct-file errors now use normal cleanup, and exit stops TX before resetting
+  output/power. RPC context parsing uses the matching unsigned-long sscanf type.
+- `echo_ir_file_test.py`: PASS (ASAN/UBSAN), malformed/empty/oversized/missing RAW,
+  NaN/infinite duty, carrier/pulse validation, prior parsed/RAW preservation,
+  0/8/32-bit masks, alias-safe setter and 100 ownership cycles. Measured allocation:
+  an initially parsed signal loading 1024 RAW timings now allocates one 4096-byte
+  buffer (previous read path allocated two buffers). This is host allocation
+  instrumentation, not a measured device read-time improvement.
+- `echo_ir_exit_test.py`: PASS, production app entry with resource/GUI adapters,
+  100 missing-file/wrong-type cycles and normal/menu/RPC exits, verifying cleanup
+  and stop-before-output-reset order. IR API87.1 build passes.
+- Save audit also found RFID's save-name handler deletes an existing file before
+  saving its replacement. Preserve the original on rename/write failure; review
+  NFC/Sub-GHz and shared name validation before declaring stage 7 complete.

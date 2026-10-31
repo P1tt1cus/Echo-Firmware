@@ -594,9 +594,10 @@ int32_t infrared_app(void* p) {
 
     bool is_remote_loaded = false;
     bool is_rpc_mode = false;
+    int32_t result = 0;
 
     if(p && strlen(p)) {
-        uint32_t rpc_ctx = 0;
+        unsigned long rpc_ctx = 0;
         if(sscanf(p, "RPC %lX", &rpc_ctx) == 1) {
             infrared->rpc_ctx = (void*)rpc_ctx;
             rpc_system_app_set_callback(
@@ -617,7 +618,8 @@ int32_t infrared_app(void* p) {
                                          "Failed to load\n\"%s\"";
 
                 infrared_show_error_message(infrared, format, file_path);
-                return -1;
+                result = -1;
+                goto cleanup;
             }
 
             furi_string_set(infrared->file_path, file_path);
@@ -640,9 +642,11 @@ int32_t infrared_app(void* p) {
 
     view_dispatcher_run(infrared->view_dispatcher);
 
+cleanup:
+    infrared_tx_stop(infrared);
     infrared_set_tx_pin(infrared, FuriHalInfraredTxPinInternal);
     infrared_enable_otg(infrared, false);
     infrared_free(infrared);
 
-    return 0;
+    return result;
 }

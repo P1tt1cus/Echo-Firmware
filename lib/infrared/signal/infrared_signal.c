@@ -49,7 +49,7 @@ static bool infrared_signal_is_message_valid(const InfraredMessage* message) {
     }
 
     uint32_t address_length = infrared_get_protocol_address_length(message->protocol);
-    uint32_t address_mask = (1UL << address_length) - 1;
+    uint32_t address_mask = address_length < 32 ? (UINT32_C(1) << address_length) - 1 : UINT32_MAX;
 
     if(message->address != (message->address & address_mask)) {
         FURI_LOG_E(
@@ -61,7 +61,7 @@ static bool infrared_signal_is_message_valid(const InfraredMessage* message) {
     }
 
     uint32_t command_length = infrared_get_protocol_command_length(message->protocol);
-    uint32_t command_mask = (1UL << command_length) - 1;
+    uint32_t command_mask = command_length < 32 ? (UINT32_C(1) << command_length) - 1 : UINT32_MAX;
 
     if(message->command != (message->command & command_mask)) {
         FURI_LOG_E(
@@ -85,7 +85,7 @@ static bool infrared_signal_is_raw_valid(const InfraredRawSignal* raw) {
             raw->frequency);
         return false;
 
-    } else if((raw->duty_cycle <= 0) || (raw->duty_cycle > 1.f)) {
+    } else if(!(raw->duty_cycle > 0.f && raw->duty_cycle <= 1.f)) {
         FURI_LOG_E(TAG, "Duty cycle is out of range (0 - 1): %f", (double)raw->duty_cycle);
         return false;
 
@@ -98,6 +98,10 @@ static bool infrared_signal_is_raw_valid(const InfraredRawSignal* raw) {
         return false;
     }
 
+    if(!raw->timings) return false;
+    for(size_t i = 0; i < raw->timings_size; i++) {
+        if(raw->timings[i] == 0) return false;
+    }
     return true;
 }
 
@@ -231,6 +235,19 @@ static inline InfraredErrorCode
             break;
         }
 
+        if(timings_size == 0) {
+            error = InfraredErrorCodeSignalRawUnableToReadData;
+            break;
+        }
+        if(frequency < INFRARED_MIN_FREQUENCY || frequency > INFRARED_MAX_FREQUENCY) {
+            error = InfraredErrorCodeSignalRawUnableToReadFrequency;
+            break;
+        }
+        if(!(duty_cycle > 0.f && duty_cycle <= 1.f)) {
+            error = InfraredErrorCodeSignalRawUnableToReadDutyCycle;
+            break;
+        }
+
         uint32_t* timings = malloc(sizeof(uint32_t) * timings_size);
         if(!flipper_format_read_uint32(ff, INFRARED_SIGNAL_DATA_KEY, timings, timings_size)) {
             error = InfraredErrorCodeSignalRawUnableToReadData;
@@ -238,9 +255,21 @@ static inline InfraredErrorCode
             break;
         }
 
-        infrared_signal_set_raw_signal(signal, timings, timings_size, frequency, duty_cycle);
-        free(timings);
-
+        InfraredRawSignal raw = {
+            .timings = timings,
+            .timings_size = timings_size,
+            .frequency = frequency,
+            .duty_cycle = duty_cycle,
+        };
+        if(!infrared_signal_is_raw_valid(&raw)) {
+            error = InfraredErrorCodeSignalRawUnableToReadData;
+            free(timings);
+            break;
+        }
+        // Commit only validated input, transferring ownership without a second copy.
+        infrared_signal_clear_timings(signal);
+        signal->is_raw = true;
+        signal->payload.raw = raw;
         error = InfraredErrorCodeNone;
     } while(false);
 
@@ -314,7 +343,7 @@ void infrared_signal_set_raw_signal(
     size_t timings_size,
     uint32_t frequency,
     float duty_cycle) {
-    infrared_signal_clear_timings(signal);
+    if(!timings || timings_size == 0 || timings_size > MAX_TIMINGS_AMOUNT) return;
 
     // If the frequency is out of bounds, set it to the closest bound same for duty cycle
     // TODO: Should we return error instead? Also infrared_signal_is_valid is used only in CLI for some reason?!
@@ -323,22 +352,20 @@ void infrared_signal_set_raw_signal(
     } else if(frequency < INFRARED_MIN_FREQUENCY) {
         frequency = INFRARED_MIN_FREQUENCY;
     }
-    if((duty_cycle <= (float)0) || (duty_cycle > (float)1)) {
+    if(!(duty_cycle > 0.f && duty_cycle <= 1.f)) {
         duty_cycle = (float)0.33;
     }
-    // In case of timings out of bounds we just call return
-    if((timings_size <= 0) || (timings_size > MAX_TIMINGS_AMOUNT)) {
-        return;
-    }
-
+    // Copy before clearing: timings may refer to this signal's current storage.
+    uint32_t* copy = malloc(timings_size * sizeof(uint32_t));
+    memcpy(copy, timings, timings_size * sizeof(uint32_t));
+    infrared_signal_clear_timings(signal);
     signal->is_raw = true;
 
     signal->payload.raw.timings_size = timings_size;
     signal->payload.raw.frequency = frequency;
     signal->payload.raw.duty_cycle = duty_cycle;
 
-    signal->payload.raw.timings = malloc(timings_size * sizeof(uint32_t));
-    memcpy(signal->payload.raw.timings, timings, timings_size * sizeof(uint32_t));
+    signal->payload.raw.timings = copy;
 }
 
 const InfraredRawSignal* infrared_signal_get_raw_signal(const InfraredSignal* signal) {
