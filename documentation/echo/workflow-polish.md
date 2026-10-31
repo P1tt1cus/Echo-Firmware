@@ -569,3 +569,57 @@ not in source. Never commit captures, credential data or pairing secrets.
   Next: complete cross-app contextual/performance review, build/install the
   combined firmware-only core, then full navigation/browser/RAW regression and
   precisely document the remaining physical fixture/paired-host dependencies.
+
+### Stage 8 — cross-app review and measured performance
+
+- Reviewed shared menus/settings, native saved-item menus and live controls.
+  Short OK selects menu actions; Back returns. Settings keep Left/Right values
+  and locked-item explanations. Browsers cancel loading on Back and preserve
+  selected files after rename. Live views keep their operation-specific controls
+  explicit: IR/RAW hold/release, Replay Bench prepare/start/stop, BLE Arm/Cancel
+  before linking and Run/Stop while linked. The IR reorder inconsistencies found
+  in this review were fixed and device-verified above. Third-party custom views
+  retain their own controls; no claim is made that they were rewritten.
+- Production menu/dashboard, RFID/NFC status, Sub-GHz/Replay lifecycle, BLE HID
+  control/view, IR control/reorder and browser suites all pass together (27 total
+  suites including file/save/installer checks). Tests cover callback routing and
+  cancellation as well as rendering. Device checks of the shared core are next.
+- Measured improvement: instrumented actual IR RAW loading for 1024 timings went
+  from two allocations / 8192 peak timing-buffer bytes at `9cd9e5f95` to one
+  allocation / 4096 bytes. The current IR parser sanitizer test independently
+  asserts the one-allocation bound. Artifact: `ir-allocation-benchmark.json`.
+  This measures the timing buffers, not total app heap or wall-clock latency.
+- Browser ownership tests retain zero strings/icons after 200 reload cycles;
+  IR selected-signal caching avoids SD parsing during draw and reuses the same
+  validated signal for send. New reliable saves intentionally use temporary SD
+  space; Sub-GHz copies decoded serialized data and IR keeps a copy of names
+  during commit. These are recovery tradeoffs, not claimed speed improvements.
+- Combined core/app build and all 27 host suites pass at `ae48bb3f8`, API87.1.
+  The device accepted a hash-verified firmware-only package at
+  `/ext/update/Echo-workflow-ae48bb3f/update.fuf` and started its reboot/update.
+  Package contains only firmware.dfu, updater.bin and update.fuf; radio stack,
+  resource pack and apps are excluded. Before-state includes 15 file hashes
+  (settings/name/current native apps/original companion/representative third-party
+  app), installed source `13e6960e`, and AU provisioning. Completion/readback
+  and final runtime regression are still pending at this entry.
+
+### Final regression — installed core and Sub-GHz memory
+
+- Core update completed: device_info reports clean `ae48bb3f`, Echo 1.1,
+  API87.1 and AU. All 15 pre-update settings/name/app hashes are unchanged.
+  Idle free heap was 143312 bytes; desktop and USB service work.
+- Installed shared browser passed empty-directory navigation, a 230-file
+  directory, last-page wrap and selected-file restoration after opening/back.
+  One transitional RPC frame was blank; a fresh snapshot displayed correctly.
+- Offline decoding a four-pulse synthetic RAW file then crashed with the device
+  explicitly reporting "out of memory". This is a real runtime failure, not a
+  passing parser test or an RPC-only issue. Before decode, browser free heap was
+  16680 bytes (minimum 1800, largest block 8032).
+- Sub-GHz's unused live RX worker retained a 16 KB pulse queue in browsing,
+  offline decode and Replay Bench. Allocate it only for live RX, retain it across
+  hopping, and release it on full stop. Start the worker before enabling its ISR
+  producer and disable the ISR before joining/freeing. Pulse capacities remain
+  unchanged. Sub-GHz 1.5 / Add Manually 1.2 / Replay Bench 1.2 contain this fix.
+- New production-function sanitizer test covers 100 allocation/release cycles,
+  500 retained-worker hops, producer ordering, no-op and TX-only stops. Runtime
+  decode/cancellation verification of the new apps is pending.

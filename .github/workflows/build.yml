@@ -32,6 +32,7 @@ jobs:
           python3 scripts/echo_nfc_status_test.py
           python3 scripts/echo_subghz_history_test.py
           python3 scripts/echo_subghz_control_test.py
+          python3 scripts/echo_subghz_memory_test.py
           python3 scripts/echo_subghz_file_test.py
           python3 scripts/echo_subghz_save_test.py
           python3 scripts/echo_hid_control_test.py
