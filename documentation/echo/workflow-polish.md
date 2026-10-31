@@ -392,3 +392,37 @@ not in source. Never commit captures, credential data or pairing secrets.
   awaits the core update; on-device checks exercised normal SD operations only.
 - Commit `ceff67482` CI passed: firmware `41231812616`, lint `41231812557`.
   Next implementation: NFC originals/shadows and truthful Sub-GHz save results.
+
+
+### Stage 7 — NFC original and shadow protection
+
+- NFC Save no longer deletes files before writing, honours its explicit target
+  path, stages replacements and updates selection only on success. Updated data
+  saved under the loaded card's name goes to its shadow; a new name creates a
+  separate original and keeps the loaded pair. Failed saves keep the name input
+  and previous filename/path for retry. New originals reject orphan-shadow names.
+- Rename is identified by the Saved menu action, not merely a non-empty name.
+  It preserves file bytes and the original/modified distinction. With a shadow,
+  both exact copies are committed before either source is removed. Copy/read/
+  write/sync/close/commit failure leaves the source pair available; failed copy
+  cleanup or removal of old files is reported. A lone original uses safe rename.
+  Both destination names are collision-checked, including orphan shadows.
+- Pair rename uses extra disk space and is not a power-loss-atomic transaction.
+  A power cut or cleanup failure may leave duplicate/staging files; source data
+  is not intentionally removed until both new files are complete. Existing
+  recovery artifacts remain protected by the bounded staged-save helper.
+- Edit UID now writes a shadow, preserving Restore to Original State. A failed
+  save restores the in-memory UID and leaves the edit available for retry.
+  Shadow writes require an existing original. Selection stays on the `.nfc`
+  path so browsers, loading and status consistently resolve the modified file.
+- Core `nfc_device_save` now checks buffered flush/close before success and before
+  ending its loading indication. This core fix is built, not installed yet.
+- `echo_nfc_save_test.py`: PASS under ASAN/UBSAN, production app/helper/scene and
+  serializer code. Covers every ordinary copy/sync/close/commit failure, rollback
+  cleanup, collisions/orphans, unchanged/missing names, file-pair identity,
+  canonical selection, named updates vs rename, UID rollback, retry and 100 cycles.
+  Existing NFC status and staged-save/RFID suites pass. Core/updater/NFC 1.3 builds
+  preserve API87.1. Physical NFC and SD power-loss behavior are not verified here.
+- Next: install/check NFC synthetic pair workflows, then Sub-GHz save/rename
+  accuracy and final shared-core/device regression. Prior `95b0cc7be` CI passed
+  (firmware/lint runs `41232108931` and `41232108911`).

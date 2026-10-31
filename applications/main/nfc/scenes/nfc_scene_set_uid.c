@@ -30,13 +30,21 @@ bool nfc_scene_set_uid_on_event(void* context, SceneManagerEvent event) {
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventByteInputDone) {
             size_t uid_len = 0;
-            nfc_device_get_uid(instance->nfc_device, &uid_len);
-            nfc_device_set_uid(instance->nfc_device, instance->byte_input_store, uid_len);
+            const uint8_t* uid = nfc_device_get_uid(instance->nfc_device, &uid_len);
+            uint8_t original_uid[NFC_BYTE_INPUT_STORE_SIZE];
+            furi_check(uid_len <= sizeof(original_uid));
+            memcpy(original_uid, uid, uid_len);
+            if(!nfc_device_set_uid(instance->nfc_device, instance->byte_input_store, uid_len)) {
+                dialog_message_show_storage_error(instance->dialogs, "Cannot change UID");
+                return true;
+            }
             if(scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSavedMenu)) {
-                if(nfc_save(instance)) {
+                if(nfc_save_shadow_file(instance)) {
                     scene_manager_next_scene(instance->scene_manager, NfcSceneSaveSuccess);
-                    consumed = true;
+                } else {
+                    nfc_device_set_uid(instance->nfc_device, original_uid, uid_len);
                 }
+                consumed = true;
             } else if(scene_manager_has_previous_scene(instance->scene_manager, NfcSceneReadMenu)) {
                 scene_manager_search_and_switch_to_previous_scene(
                     instance->scene_manager, NfcSceneReadMenu);

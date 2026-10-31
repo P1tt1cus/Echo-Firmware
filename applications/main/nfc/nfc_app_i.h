@@ -245,6 +245,8 @@ bool nfc_delete_shadow_file(NfcApp* instance);
 
 bool nfc_save(NfcApp* instance);
 
+bool nfc_rename(NfcApp* instance, const char* name);
+
 bool nfc_delete(NfcApp* instance);
 
 bool nfc_load_from_file_select(NfcApp* instance);

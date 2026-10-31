@@ -826,12 +826,23 @@ static bool
 
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventTextInputDone) {
-            if(!furi_string_empty(instance->file_name)) {
-                nfc_delete(instance);
+            consumed = true;
+            bool saved;
+            bool renaming =
+                scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSavedMenu) &&
+                scene_manager_get_scene_state(instance->scene_manager, NfcSceneSavedMenu) ==
+                    SubmenuIndexCommonRename;
+            if(renaming) {
+                saved = nfc_rename(instance, instance->text_store);
+            } else {
+                FuriString* previous_name = furi_string_alloc_set(instance->file_name);
+                furi_string_set(instance->file_name, instance->text_store);
+                saved = nfc_save(instance);
+                if(!saved) furi_string_set(instance->file_name, previous_name);
+                furi_string_free(previous_name);
             }
-            furi_string_set(instance->file_name, instance->text_store);
 
-            if(nfc_save(instance)) {
+            if(saved) {
                 scene_manager_next_scene(instance->scene_manager, NfcSceneSaveSuccess);
                 dolphin_deed(
                     scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSetType) ?
@@ -839,12 +850,10 @@ static bool
                         DolphinDeedNfcSave);
 
                 const NfcProtocol protocol = nfc_device_get_protocol(instance->nfc_device);
-                consumed = nfc_protocol_support_get(protocol, instance)
-                               ->scene_save_name.on_event(instance, event);
-            } else {
-                consumed = scene_manager_search_and_switch_to_previous_scene(
-                    instance->scene_manager, NfcSceneStart);
+                nfc_protocol_support_get(protocol, instance)
+                    ->scene_save_name.on_event(instance, event);
             }
+            // A failed operation keeps the name input and prior selection for retry.
         }
     }
 

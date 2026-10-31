@@ -203,6 +203,8 @@ bool nfc_device_save(NfcDevice* instance, const char* path) {
         saved = true;
     } while(false);
 
+    if(!flipper_format_buffered_file_close(ff)) saved = false;
+
     if(instance->loading_callback) {
         instance->loading_callback(instance->loading_callback_context, false);
     }
