@@ -44,3 +44,8 @@ Submenu/VariableItemList and the Compact Menu renderer. Run
 `scripts/echo_shared_menu_test.py` with existing Echo checks. Changes require a
 firmware-only update; retain API 87.1, existing FAPs and SD resources. Preserve
 standard/extended callbacks, settings values, locks and app-specific input.
+
+Echo installer UI uses `applications/system/updater/views/echo_install.h`. Keep
+error diagnostics and retry/exit controls intact. Run
+`scripts/echo_installer_test.py --package-check` after building. The Echo guide
+records the version sources, quoted manifest label and preview limitations.

@@ -69,7 +69,7 @@ if GetOption("fullenv") or any(
     dist_basic_arguments = [
         "${ARGS}",
         "--bundlever",
-        "${UPDATE_VERSION_STRING}",
+        '"${UPDATE_VERSION_STRING}"',
     ]
     dist_radio_arguments = [
         "--radio",

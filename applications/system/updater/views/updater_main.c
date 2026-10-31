@@ -8,6 +8,7 @@
 
 #include "../updater_i.h"
 #include "updater_main.h"
+#include "echo_install.h"
 
 struct UpdaterMainView {
     View* view;
@@ -78,29 +79,7 @@ bool updater_main_input(InputEvent* event, void* context) {
 static void updater_main_draw_callback(Canvas* canvas, void* _model) {
     UpdaterProgressModel* model = _model;
 
-    canvas_set_font(canvas, FontPrimary);
-
-    if(model->failed) {
-        canvas_draw_icon(canvas, 2, 22, &I_Warning_30x23);
-        canvas_draw_str_aligned(canvas, 40, 9, AlignLeft, AlignTop, "Update Failed!");
-        canvas_set_font(canvas, FontSecondary);
-
-        elements_multiline_text_aligned(
-            canvas, 75, 26, AlignCenter, AlignTop, furi_string_get_cstr(model->status));
-
-        canvas_draw_str_aligned(
-            canvas, 18, 55, AlignLeft, AlignTop, "to retry, hold       to abort");
-        canvas_draw_icon(canvas, 7, 54, &I_Ok_btn_9x9);
-        canvas_draw_icon(canvas, 75, 55, &I_Pin_back_arrow_10x8);
-    } else {
-        canvas_set_font(canvas, FontSecondary);
-        canvas_draw_str_aligned(canvas, 82, 5, AlignCenter, AlignTop, "Installing");
-        canvas_draw_str_aligned(
-            canvas, 64, 51, AlignCenter, AlignTop, furi_string_get_cstr(model->status));
-        canvas_draw_icon(canvas, 4, 5, &I_Updating_32x40);
-        canvas_draw_icon(canvas, 50, 16, &I_Updating_Logo_62x15);
-        elements_progress_bar(canvas, 42, 36, 80, (float)model->progress / 100);
-    }
+    echo_install_draw(canvas, furi_string_get_cstr(model->status), model->progress, model->failed);
 }
 
 UpdaterMainView* updater_main_alloc(void) {

@@ -111,3 +111,24 @@ controls, real m-array, sanitizer host adapter), existing Echo checks and
 `firmware_all updater_minpackage SKIP_EXTERNAL=1`. Install the firmware-only
 package and preserve SD resources, settings and FAPs. Verify representative
 settings, built-in and unmodified third-party app menus on the device.
+
+## Echo installer
+
+The update confirmation displays **Install Echo / Echo 1.1**. During installation,
+the private code-drawn pulse and ECHO wordmark accompany real overall progress,
+a plain-language stage and a completion screen. Error screens retain the exact
+diagnostic and stage code, short-OK retry and long-Back exit. Flash validation,
+backup/restore, power controls and recovery logic are unchanged.
+
+Default artifacts use `echo-1.1-<commit>`; the visible manifest Info is simply
+`Echo 1.1`. The package-version argument is quoted so its space survives SCons.
+Source commit/branch remain in device diagnostics. When bumping the version,
+update `scripts/version.py`, `fbt_options.py`, the default in
+`site_scons/commandline.scons`, and the installer identity assertions together.
+
+Run `python3 scripts/echo_installer_test.py --package-check` after the firmware
+and updater build. It checks the production renderer at every progress value,
+completion, SD wait, diagnostics and generated package identity. The renderer
+can also be included in a temporary preview FAP for on-device visual checks;
+remove the preview afterward. RPC is unavailable during the RAM flasher, so
+distinguish preview screenshots from actual install completion evidence.
