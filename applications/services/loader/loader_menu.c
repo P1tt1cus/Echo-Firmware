@@ -23,6 +23,7 @@
 
 typedef enum {
     LoaderMenuViewPrimary,
+    LoaderMenuViewTools,
     LoaderMenuViewSettings,
 } LoaderMenuView;
 
@@ -35,6 +36,7 @@ struct LoaderMenu {
     FuriPubSubSubscription* subscription;
 
     uint32_t selected_primary;
+    uint32_t selected_echo;
     uint32_t selected_setting;
     LoaderMenuView current_view;
     bool settings_only;
@@ -72,6 +74,7 @@ LoaderMenu* loader_menu_alloc(void (*closed_cb)(void*), void* context, bool sett
     loader_menu->closed_cb = closed_cb;
     loader_menu->context = context;
     loader_menu->selected_primary = LoaderMenuIndexApplications;
+    loader_menu->selected_echo = 0;
     loader_menu->selected_setting = 0;
     loader_menu->settings_only = settings_only;
     loader_menu->current_view = settings_only ? LoaderMenuViewSettings : LoaderMenuViewPrimary;
@@ -117,6 +120,7 @@ LIST_DEF(MenuAppList, MenuApp, M_POD_OPLIST)
 typedef struct {
     LoaderMenu* loader_menu;
     Menu* primary_menu;
+    Menu* echo_menu;
     Submenu* settings_menu;
     MenuAppList_t apps_list;
 } LoaderMenuApp;
@@ -201,12 +205,41 @@ static void loader_menu_switch_to_settings(void* context, uint32_t index) {
     app->loader_menu->current_view = LoaderMenuViewSettings;
 }
 
-static void loader_menu_back(void* context) {
+static void loader_menu_echo_callback(void* context, uint32_t index) {
     LoaderMenuApp* app = context;
-    if(app->loader_menu->current_view == LoaderMenuViewSettings &&
-       !app->loader_menu->settings_only) {
+    if(index == 3) {
         furi_timer_pending_callback(
             loader_menu_set_view_pending, app, (uint32_t)menu_get_view(app->primary_menu));
+        app->loader_menu->current_view = LoaderMenuViewTools;
+    } else if(index == 4) {
+        loader_menu_switch_to_settings(app, index);
+    } else {
+        Loader* loader = app->loader_menu->loader;
+        const char* name = index == 1 ? "Infrared" : EXT_PATH("apps/GPIO/marauder_studio.fap");
+        loader_start_detached_with_gui_error(loader, name, index == 2 ? "sessions" : NULL);
+    }
+}
+
+static void loader_menu_build_echo(LoaderMenuApp* app) {
+    static const char* labels[] = {"Radio", "Remotes", "Sessions", "Tools", "Settings"};
+    const Icon* icons[] = {
+        &I_EchoRadio_14,
+        &I_EchoRemotes_14,
+        &I_EchoSessions_14,
+        &I_EchoTools_14,
+        &I_EchoSettings_14};
+    for(size_t i = 0; i < COUNT_OF(labels); ++i) {
+        menu_add_item(app->echo_menu, labels[i], icons[i], i, loader_menu_echo_callback, app);
+    }
+    menu_set_selected_item(app->echo_menu, app->loader_menu->selected_echo);
+}
+
+static void loader_menu_back(void* context) {
+    LoaderMenuApp* app = context;
+    if(app->loader_menu->current_view != LoaderMenuViewPrimary &&
+       !app->loader_menu->settings_only) {
+        furi_timer_pending_callback(
+            loader_menu_set_view_pending, app, (uint32_t)menu_get_view(app->echo_menu));
         app->loader_menu->current_view = LoaderMenuViewPrimary;
     } else {
         furi_thread_flags_set(furi_thread_get_id(app->loader_menu->thread), 0);
@@ -376,6 +409,8 @@ static LoaderMenuApp* loader_menu_app_alloc(LoaderMenu* loader_menu) {
     if(!app->loader_menu->settings_only) {
         app->primary_menu = menu_alloc();
         loader_menu_build_menu(app, loader_menu);
+        app->echo_menu = menu_alloc();
+        loader_menu_build_echo(app);
     }
 
     // Settings menu
@@ -384,7 +419,9 @@ static LoaderMenuApp* loader_menu_app_alloc(LoaderMenu* loader_menu) {
 
     View* view = app->loader_menu->current_view == LoaderMenuViewSettings ?
                      submenu_get_view(app->settings_menu) :
-                     menu_get_view(app->primary_menu);
+                 app->loader_menu->current_view == LoaderMenuViewTools ?
+                     menu_get_view(app->primary_menu) :
+                     menu_get_view(app->echo_menu);
     view_holder_set_view(app->loader_menu->loader->view_holder, view);
     view_holder_set_back_callback(app->loader_menu->loader->view_holder, loader_menu_back, app);
 
@@ -398,6 +435,8 @@ static void loader_menu_app_free(LoaderMenuApp* app) {
         loading_get_view(app->loader_menu->loader->loading));
 
     if(!app->loader_menu->settings_only) {
+        app->loader_menu->selected_echo = menu_get_selected_item(app->echo_menu);
+        menu_free(app->echo_menu);
         app->loader_menu->selected_primary = menu_get_selected_item(app->primary_menu);
         menu_free(app->primary_menu);
         for

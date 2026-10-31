@@ -185,16 +185,10 @@ static DialogMessageButton about_screen_fw_version(DialogsApp* dialogs, DialogMe
             api_minor,
             c2_ver ? c2_ver->StackTypeString : "<none>",
             version_get_target(ver));
-        if(!strcmp(version_get_version(ver), "mntm-dev") &&
-           strcmp(version_get_gitbranch(ver), "dev")) {
-            // Not a tag but not dev branch, show custom branch
-            furi_string_cat(buffer, version_get_gitbranch(ver));
-        } else {
-            furi_string_cat(buffer, "momentum-fw.dev");
-        }
+        furi_string_cat(buffer, "Echo / Momentum base");
     }
 
-    dialog_message_set_header(message, "Firmware Info:", 0, 0, AlignLeft, AlignTop);
+    dialog_message_set_header(message, "ECHO Firmware:", 0, 0, AlignLeft, AlignTop);
     dialog_message_set_text(message, furi_string_get_cstr(buffer), 0, 13, AlignLeft, AlignTop);
     result = dialog_message_show(dialogs, message);
     furi_string_free(buffer);
