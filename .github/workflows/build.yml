@@ -39,6 +39,7 @@ jobs:
           python3 scripts/echo_ir_control_test.py
           python3 scripts/echo_ir_file_test.py
           python3 scripts/echo_ir_exit_test.py
+          python3 scripts/echo_filename_test.py
           python3 scripts/echo_installer_test.py --package-check
       - uses: actions/upload-artifact@v4
         with:
