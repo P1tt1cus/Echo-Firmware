@@ -47,6 +47,8 @@
 #define SUBGHZ_EXT_PRESET_NAME true
 #define SUBGHZ_MEASURE_LOADING false
 
+typedef struct EchoDashboard EchoDashboard;
+
 struct SubGhz {
     Gui* gui;
     NotificationApp* notifications;
@@ -105,6 +107,7 @@ struct SubGhz {
 
     uint8_t tx_power;
     void* rpc_ctx;
+    EchoDashboard* dashboard;
 };
 
 void subghz_blink_start(SubGhz* subghz);

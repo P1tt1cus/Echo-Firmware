@@ -59,3 +59,30 @@ The validation script checks animation ordering/dimensions, every packed pixel,
 private icon/API declarations and Git partial-clone version metadata. Build and
 host checks are separate from on-device verification; record installed hashes
 and actual device results in the workspace handoff.
+
+## App dashboards (native apps 1.1, Echo Radio 1.6)
+
+Remotes, NFC and Sub-GHz now open a common Echo dashboard. Radio and Sessions
+use the same layout in the companion. Four actions are visible with a scrolling
+selection, a brief description below, and SD status or last board-reply age in
+the header. Up/Down wraps, Left/Right jumps to first/last, short OK opens an
+action, and Back returns. Debug actions remain locked when system debug is off.
+Existing action scenes, saved files and settings are retained.
+
+Build only the affected external apps; this update needs no MCU flash:
+
+```sh
+FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz SKIP_EXTERNAL=1
+python3 scripts/echo_dashboard_test.py
+```
+
+Install `.extapps/infrared.fap`, `nfc.fap`, and `subghz.fap` from
+`build/f7-firmware-C/` into their existing `/ext/apps/Infrared/`, `/ext/apps/NFC/`
+and `/ext/apps/Sub-GHz/` locations. Close apps first and hash-verify replacements.
+Core Echo 1.0/API 87.1 and ESP32 firmware are unchanged.
+
+`applications/main/echo/echo_dashboard.h` is app-local and adds no firmware API.
+Keep its companion copy at `studio/echo_dashboard.h` identical when changing
+the shared renderer. Both repositories exercise the real header with sanitizer
+tests for navigation, bounds, action IDs, locked actions and model locking.
+App structure fields and view IDs are appended to preserve existing offsets.

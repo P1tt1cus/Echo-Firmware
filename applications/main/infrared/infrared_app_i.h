@@ -104,6 +104,8 @@ typedef struct {
 /**
  * @brief Infrared application type.
  */
+typedef struct EchoDashboard EchoDashboard;
+
 struct InfraredApp {
     SceneManager* scene_manager; /**< Pointer to a SceneManager instance. */
     ViewDispatcher* view_dispatcher; /**< Pointer to a ViewDispatcher instance. */
@@ -140,6 +142,7 @@ struct InfraredApp {
     InfraredAppState app_state; /**< Application state. */
 
     void* rpc_ctx; /**< Pointer to the RPC context object. */
+    EchoDashboard* dashboard;
 };
 
 /**
@@ -156,6 +159,7 @@ typedef enum {
     InfraredViewDebugView,
     InfraredViewMove,
     InfraredViewLoading,
+    InfraredViewDashboard,
 } InfraredView;
 
 /**

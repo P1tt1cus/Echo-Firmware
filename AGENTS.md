@@ -34,3 +34,7 @@ the Echo asset pack and Echo Radio FAP separately. Do not use a resources bundle
 that removes existing external apps. Run `scripts/echo_validate.py` alongside
 the build and check launcher navigation on-device. Renaming the device changes
 the USB serial-port name; re-enumerate before connecting.
+
+App dashboards are external FAP updates; see the Echo guide. Run
+`scripts/echo_dashboard_test.py` and build the three affected FAPs. Keep
+`applications/main/echo/echo_dashboard.h` identical to the companion copy.

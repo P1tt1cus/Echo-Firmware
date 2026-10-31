@@ -1,9 +1,10 @@
+#include "../../echo/echo_dashboard.h"
 #include "../infrared_app_i.h"
 
 enum SubmenuIndex {
+    SubmenuIndexSavedRemotes,
     SubmenuIndexUniversalRemotes,
     SubmenuIndexLearnNewRemote,
-    SubmenuIndexSavedRemotes,
     SubmenuIndexGpioSettings,
     SubmenuIndexDebug
 };
@@ -15,52 +16,32 @@ static void infrared_scene_start_submenu_callback(void* context, uint32_t index)
 
 void infrared_scene_start_on_enter(void* context) {
     InfraredApp* infrared = context;
-    Submenu* submenu = infrared->submenu;
     SceneManager* scene_manager = infrared->scene_manager;
 
-    submenu_add_item(
-        submenu,
-        "Universal Remotes",
-        SubmenuIndexUniversalRemotes,
+    static EchoDashboardItem items[] = {
+        {"Saved remotes", "Open a saved remote", SubmenuIndexSavedRemotes, EchoDashFiles, false},
+        {"Learn remote", "Record remote buttons", SubmenuIndexLearnNewRemote, EchoDashRead, false},
+        {"Universal remotes",
+         "Choose a device type",
+         SubmenuIndexUniversalRemotes,
+         EchoDashRadio,
+         false},
+        {"GPIO settings", "IR output and power", SubmenuIndexGpioSettings, EchoDashSettings, false},
+        {"Debug RX", "Enable system debug", SubmenuIndexDebug, EchoDashTools, true},
+    };
+    items[4].locked = !infrared->app_state.is_debug_enabled;
+    items[4].description = items[4].locked ? "Enable system debug" : "Inspect received IR";
+    echo_dashboard_configure(
+        infrared->dashboard,
+        "Remotes",
+        storage_sd_status(infrared->storage) == FSE_OK ? "SD ready" : "No SD",
+        EchoDashRead,
+        items,
+        COUNT_OF(items),
+        scene_manager_get_scene_state(scene_manager, InfraredSceneStart),
         infrared_scene_start_submenu_callback,
         infrared);
-    submenu_add_item(
-        submenu,
-        "Learn New Remote",
-        SubmenuIndexLearnNewRemote,
-        infrared_scene_start_submenu_callback,
-        infrared);
-    submenu_add_item(
-        submenu,
-        "Saved Remotes",
-        SubmenuIndexSavedRemotes,
-        infrared_scene_start_submenu_callback,
-        infrared);
-    submenu_add_item(
-        submenu,
-        "GPIO Settings",
-        SubmenuIndexGpioSettings,
-        infrared_scene_start_submenu_callback,
-        infrared);
-
-    submenu_add_lockable_item(
-        submenu,
-        "Debug RX",
-        SubmenuIndexDebug,
-        infrared_scene_start_submenu_callback,
-        infrared,
-        !infrared->app_state.is_debug_enabled,
-        "Enable\n"
-        "Settings >\n"
-        "System >\n"
-        "Debug");
-
-    const uint32_t submenu_index =
-        scene_manager_get_scene_state(scene_manager, InfraredSceneStart);
-    submenu_set_selected_item(submenu, submenu_index);
-    scene_manager_set_scene_state(scene_manager, InfraredSceneStart, SubmenuIndexUniversalRemotes);
-
-    view_dispatcher_switch_to_view(infrared->view_dispatcher, InfraredViewSubmenu);
+    view_dispatcher_switch_to_view(infrared->view_dispatcher, InfraredViewDashboard);
 }
 
 bool infrared_scene_start_on_event(void* context, SceneManagerEvent event) {

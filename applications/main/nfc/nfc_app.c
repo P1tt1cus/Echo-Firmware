@@ -1,3 +1,4 @@
+#include "../echo/echo_dashboard.h"
 #include "nfc_app_i.h"
 #include "api/nfc_app_api_interface.h"
 #include "helpers/protocol_support/nfc_protocol_support.h"
@@ -81,6 +82,9 @@ NfcApp* nfc_app_alloc(void) {
 
     // Submenu
     instance->submenu = submenu_alloc();
+    instance->dashboard = echo_dashboard_alloc();
+    view_dispatcher_add_view(
+        instance->view_dispatcher, NfcViewDashboard, instance->dashboard->view);
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewMenu, submenu_get_view(instance->submenu));
 
@@ -165,6 +169,8 @@ void nfc_app_free(NfcApp* instance) {
     // Submenu
     view_dispatcher_remove_view(instance->view_dispatcher, NfcViewMenu);
     submenu_free(instance->submenu);
+    view_dispatcher_remove_view(instance->view_dispatcher, NfcViewDashboard);
+    echo_dashboard_free(instance->dashboard);
 
     // DialogEx
     view_dispatcher_remove_view(instance->view_dispatcher, NfcViewDialogEx);

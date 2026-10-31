@@ -1,3 +1,4 @@
+#include "../../echo/echo_dashboard.h"
 #include "../nfc_app_i.h"
 #include <dolphin/dolphin.h>
 
@@ -18,7 +19,6 @@ void nfc_scene_start_submenu_callback(void* context, uint32_t index) {
 
 void nfc_scene_start_on_enter(void* context) {
     NfcApp* nfc = context;
-    Submenu* submenu = nfc->submenu;
 
     // Clear file name and device contents
     furi_string_reset(nfc->file_name);
@@ -27,35 +27,27 @@ void nfc_scene_start_on_enter(void* context) {
     // Reset detected protocols list
     nfc_detected_protocols_reset(nfc->detected_protocols);
 
-    submenu_add_item(submenu, "Read", SubmenuIndexRead, nfc_scene_start_submenu_callback, nfc);
-    submenu_add_item(
-        submenu,
-        "Extract MFC Keys",
-        SubmenuIndexDetectReader,
+    static EchoDashboardItem items[] = {
+        {"Read card", "Identify a nearby tag", SubmenuIndexRead, EchoDashRead, false},
+        {"Saved cards", "Open stored NFC files", SubmenuIndexSaved, EchoDashFiles, false},
+        {"Extra tools", "Card-specific tools", SubmenuIndexExtraAction, EchoDashTools, false},
+        {"Add manually", "Create a card record", SubmenuIndexAddManually, EchoDashRead, false},
+        {"Extract MFC keys", "Reader-assisted keys", SubmenuIndexDetectReader, EchoDashLink, false},
+        {"Debug", "Enable system debug", SubmenuIndexDebug, EchoDashTools, true},
+    };
+    items[5].locked = !furi_hal_rtc_is_flag_set(FuriHalRtcFlagDebug);
+    items[5].description = items[5].locked ? "Enable system debug" : "NFC developer tools";
+    echo_dashboard_configure(
+        nfc->dashboard,
+        "NFC",
+        storage_sd_status(nfc->storage) == FSE_OK ? "SD ready" : "No SD",
+        EchoDashRead,
+        items,
+        COUNT_OF(items),
+        scene_manager_get_scene_state(nfc->scene_manager, NfcSceneStart),
         nfc_scene_start_submenu_callback,
         nfc);
-    submenu_add_item(submenu, "Saved", SubmenuIndexSaved, nfc_scene_start_submenu_callback, nfc);
-    submenu_add_item(
-        submenu, "Extra Actions", SubmenuIndexExtraAction, nfc_scene_start_submenu_callback, nfc);
-    submenu_add_item(
-        submenu, "Add Manually", SubmenuIndexAddManually, nfc_scene_start_submenu_callback, nfc);
-
-    submenu_add_lockable_item(
-        submenu,
-        "Debug",
-        SubmenuIndexDebug,
-        nfc_scene_start_submenu_callback,
-        nfc,
-        !furi_hal_rtc_is_flag_set(FuriHalRtcFlagDebug),
-        "Enable\n"
-        "Settings >\n"
-        "System >\n"
-        "Debug");
-
-    submenu_set_selected_item(
-        submenu, scene_manager_get_scene_state(nfc->scene_manager, NfcSceneStart));
-
-    view_dispatcher_switch_to_view(nfc->view_dispatcher, NfcViewMenu);
+    view_dispatcher_switch_to_view(nfc->view_dispatcher, NfcViewDashboard);
 }
 
 bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
@@ -64,6 +56,8 @@ bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
 
     if(event.type == SceneManagerEventTypeCustom) {
         consumed = true;
+        /* Save selection before scenes that may open a synchronous file picker. */
+        scene_manager_set_scene_state(nfc->scene_manager, NfcSceneStart, event.event);
         if(event.event == SubmenuIndexRead) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneDetect);
             dolphin_deed(DolphinDeedNfcRead);
@@ -79,9 +73,6 @@ bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneDebug);
         } else {
             consumed = false;
-        }
-        if(consumed) {
-            scene_manager_set_scene_state(nfc->scene_manager, NfcSceneStart, event.event);
         }
     }
     return consumed;
