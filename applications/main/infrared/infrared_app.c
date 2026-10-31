@@ -499,6 +499,18 @@ void infrared_show_error_message(const InfraredApp* infrared, const char* fmt, .
     va_end(args);
 }
 
+void infrared_show_remote_load_error(const InfraredApp* infrared, InfraredErrorCode error) {
+    const char* message;
+    if(INFRARED_ERROR_CHECK(error, InfraredErrorCodeWrongFileType)) {
+        message = "Not an IR\nremote file.";
+    } else if(INFRARED_ERROR_CHECK(error, InfraredErrorCodeWrongFileVersion)) {
+        message = "Unsupported\nfile version.";
+    } else {
+        message = "Cannot read\nremote file.\nCheck SD.";
+    }
+    infrared_show_error_message(infrared, "%s", message);
+}
+
 void infrared_set_tx_pin(InfraredApp* infrared, FuriHalInfraredTxPin tx_pin) {
     if(tx_pin < FuriHalInfraredTxPinMax) {
         furi_hal_infrared_set_tx_output(tx_pin);
@@ -612,12 +624,7 @@ int32_t infrared_app(void* p) {
                 is_remote_loaded = true;
             } else {
                 is_remote_loaded = false;
-                bool wrong_file_type = INFRARED_ERROR_CHECK(error, InfraredErrorCodeWrongFileType);
-                const char* format = wrong_file_type ?
-                                         "Library file\n\"%s\" can't be opened as a remote" :
-                                         "Failed to load\n\"%s\"";
-
-                infrared_show_error_message(infrared, format, file_path);
+                infrared_show_remote_load_error(infrared, error);
                 result = -1;
                 goto cleanup;
             }

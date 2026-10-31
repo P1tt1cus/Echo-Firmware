@@ -277,3 +277,22 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Save audit also found RFID's save-name handler deletes an existing file before
   saving its replacement. Preserve the original on rename/write failure; review
   NFC/Sub-GHz and shared name validation before declaring stage 7 complete.
+
+- Shared filename validator now rejects empty/dot/traversal/control/FAT-invalid
+  names and ambiguous trailing dots/spaces before touching storage. Existing-name
+  collisions and SD/stat errors have separate feedback; only Not Exist means the
+  proposed name is available. Optional current-name storage is zero-initialized.
+  `echo_filename_test.py`: PASS (ASAN/UBSAN), 100 cycles, UTF-8 names, collisions,
+  six storage error states, current-name handling and balanced record ownership.
+  Core/updater/API87.1 build and Echo asset/installer checks pass; core not installed.
+- Device checks on IR file validation: valid parsed signal followed by empty RAW,
+  zero carrier and NaN duty records each shows Cannot read signal. No TX ran.
+  Wrong-format direct open exits after Back; free heap was 142184 before and
+  142232 after this single cycle (not a stress/leak-proof measurement).
+- Wrong-format file popup initially clipped the path and mislabeled unknown
+  formats as libraries. It now uses compact format/version/read-error messages
+  shared by direct-file and Saved workflows; entry tests cover all three causes.
+- Before/after allocation benchmark compiled production code from `9cd9e5f95`
+  and the new reader with the same instrumented allocator: a parsed → 1024-sample
+  RAW read used 2 allocations / 8192 peak timing bytes before, and 1 / 4096 after.
+  Evidence is retained in `build/workflow-polish-install/ir-allocation-benchmark.json`.

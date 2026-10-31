@@ -217,6 +217,8 @@ InfraredErrorCode
  */
 void infrared_tx_start(InfraredApp* infrared);
 
+void infrared_show_remote_load_error(const InfraredApp* infrared, InfraredErrorCode error);
+
 /**
  * @brief Load a signal under the given index and begin transmission.
  *
