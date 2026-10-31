@@ -41,6 +41,8 @@ jobs:
           python3 scripts/echo_ir_control_test.py
           python3 scripts/echo_ir_file_test.py
           python3 scripts/echo_ir_exit_test.py
+          python3 scripts/echo_ir_save_test.py
+          python3 scripts/echo_ir_save_scene_test.py
           python3 scripts/echo_filename_test.py
           python3 scripts/echo_file_save_test.py
           python3 scripts/echo_nfc_save_test.py

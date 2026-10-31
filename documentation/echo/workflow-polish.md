@@ -497,3 +497,32 @@ not in source. Never commit captures, credential data or pairing secrets.
   Next: IR create/append/batch edit/move/rename transactional save audit. IR move
   currently deletes then reinserts in separate commits; an insertion failure
   can therefore lose the moved signal. Preserve it in one staged replacement.
+
+### Stage 7 — IR save/edit recovery
+
+- Remote creation plus its first learned button now commits together, rejects
+  collisions, and updates the current path/name list only on success. Append,
+  insert, button rename/delete and move use checked staged replacements. A move
+  writes its final ordering once instead of deleting and reinserting in two
+  separate commits. Failed operations restore in-memory names and retain the
+  original file; failed rollback reports the retained `.echo-old-N` suffix.
+- Buffered write/flush/close errors prevent commit. Streams are freed before
+  staging cleanup because buffered close can fail before closing its underlying
+  file. Recovery notices run on the UI thread after joining the edit worker.
+- Remote rename is byte-preserving, rejects collisions, checks unchanged-name
+  existence and retains the new browser selection. Rename/learning save errors
+  keep the entered name, selected button and learned signal available for retry.
+- Edits/append reserialize the remote's valid signals one at a time, normalizing
+  formatting and dropping comments as the earlier batch editor did. They need
+  temporary SD space for a complete replacement and reject an unreadable signal
+  rather than committing a partial remote. This is ordinary I/O-failure recovery,
+  not power-loss atomicity.
+- New `echo_ir_save_test.py` runs actual remote code and real name containers
+  with storage/format adapters under ASAN/UBSAN: every normal failure step,
+  original/name preservation and retry, all move permutations, failed rollback,
+  create/collision/empty/unchanged-name/corrupt-source cases and 100 cycles.
+  `echo_ir_save_scene_test.py` covers actual rename/create app helpers and scene
+  event handlers, browser selection, retained input/selection, learned-signal
+  retries and joined-worker recovery notices. Existing IR view/control/file/exit
+  and shared staged-save suites pass; API87.1 core/updater/IR 1.4 builds pass.
+  Device installation and synthetic edit checks are next.

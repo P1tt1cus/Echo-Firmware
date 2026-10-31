@@ -335,14 +335,9 @@ InfraredErrorCode infrared_add_remote_with_button(
     furi_string_cat_printf(
         new_path, "/%s%s", furi_string_get_cstr(new_name), INFRARED_APP_EXTENSION);
 
-    InfraredErrorCode error = InfraredErrorCodeNone;
-
-    do {
-        error = infrared_remote_create(remote, furi_string_get_cstr(new_path));
-        if(INFRARED_ERROR_PRESENT(error)) break;
-
-        error = infrared_remote_append_signal(remote, signal, button_name);
-    } while(false);
+    InfraredErrorCode error = infrared_remote_create_with_signal(
+        remote, furi_string_get_cstr(new_path), signal, button_name);
+    if(!INFRARED_ERROR_PRESENT(error)) furi_string_set(infrared->file_path, new_path);
 
     furi_string_free(new_name);
     furi_string_free(new_path);
@@ -355,14 +350,8 @@ InfraredErrorCode
     InfraredRemote* remote = infrared->remote;
     const char* old_path = infrared_remote_get_path(remote);
 
-    if(!strcmp(infrared_remote_get_name(remote), new_name)) {
-        return true;
-    }
-
     FuriString* new_name_fstr = furi_string_alloc_set(new_name);
     FuriString* new_path_fstr = furi_string_alloc_set(old_path);
-
-    infrared_find_vacant_remote_name(new_name_fstr, old_path);
 
     if(furi_string_end_with(new_path_fstr, INFRARED_APP_EXTENSION)) {
         path_extract_dirname(old_path, new_path_fstr);
@@ -373,6 +362,7 @@ InfraredErrorCode
 
     const InfraredErrorCode error =
         infrared_remote_rename(remote, furi_string_get_cstr(new_path_fstr));
+    if(!INFRARED_ERROR_PRESENT(error)) furi_string_set(infrared->file_path, new_path_fstr);
 
     furi_string_free(new_name_fstr);
     furi_string_free(new_path_fstr);
@@ -465,6 +455,7 @@ void infrared_blocking_task_start(InfraredApp* infrared, FuriThreadCallback call
 
 InfraredErrorCode infrared_blocking_task_finalize(InfraredApp* infrared) {
     furi_thread_join(infrared->task_thread);
+    infrared_show_save_recovery(infrared);
     return furi_thread_get_return_code(infrared->task_thread);
 }
 
@@ -497,6 +488,19 @@ void infrared_show_error_message(const InfraredApp* infrared, const char* fmt, .
 
     furi_string_free(message);
     va_end(args);
+}
+
+void infrared_show_save_recovery(const InfraredApp* infrared) {
+    FuriString* path = furi_string_alloc();
+    infrared_remote_take_recovery_path(infrared->remote, path);
+    if(!furi_string_empty(path)) {
+        const char* suffix = strrchr(furi_string_get_cstr(path), '.');
+        infrared_show_error_message(
+            infrared,
+            "Prior file kept as\n<remote>%s\nCheck SD card",
+            suffix ? suffix : ".echo-old");
+    }
+    furi_string_free(path);
 }
 
 void infrared_show_remote_load_error(const InfraredApp* infrared, InfraredErrorCode error) {
