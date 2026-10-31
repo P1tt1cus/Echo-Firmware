@@ -32,7 +32,60 @@ typedef struct {
     float raw_threshold_rssi;
     bool not_showing_samples;
     SubGhzRadioDeviceType device_type;
+    bool tx_active;
 } SubGhzReadRAWModel;
+
+void subghz_read_raw_start_send(SubGhzReadRAW* instance) {
+    with_view_model(
+        instance->view,
+        SubGhzReadRAWModel * model,
+        {
+            if(model->status == SubGhzReadRAWStatusLoadKeyIDLE)
+                model->status = SubGhzReadRAWStatusLoadKeyTX;
+            else if(model->status == SubGhzReadRAWStatusIDLE)
+                model->status = SubGhzReadRAWStatusTX;
+            model->tx_active = false;
+        },
+        true);
+}
+
+void subghz_read_raw_set_tx_active(SubGhzReadRAW* instance, bool active) {
+    with_view_model(
+        instance->view, SubGhzReadRAWModel * model, { model->tx_active = active; }, true);
+}
+
+bool subghz_read_raw_is_tx_requested(SubGhzReadRAW* instance) {
+    bool requested = false;
+    with_view_model(
+        instance->view,
+        SubGhzReadRAWModel * model,
+        {
+            requested = model->status == SubGhzReadRAWStatusTX ||
+                        model->status == SubGhzReadRAWStatusTXRepeat ||
+                        model->status == SubGhzReadRAWStatusLoadKeyTX ||
+                        model->status == SubGhzReadRAWStatusLoadKeyTXRepeat;
+        },
+        false);
+    return requested;
+}
+
+void subghz_read_raw_cancel_send(SubGhzReadRAW* instance) {
+    with_view_model(
+        instance->view,
+        SubGhzReadRAWModel * model,
+        {
+            model->tx_active = false;
+            if(model->status == SubGhzReadRAWStatusLoadKeyTX ||
+               model->status == SubGhzReadRAWStatusLoadKeyTXRepeat) {
+                model->status = SubGhzReadRAWStatusLoadKeyIDLE;
+            } else if(
+                model->status == SubGhzReadRAWStatusTX ||
+                model->status == SubGhzReadRAWStatusTXRepeat) {
+                model->status = SubGhzReadRAWStatusIDLE;
+            }
+        },
+        true);
+}
 
 void subghz_read_raw_set_callback(
     SubGhzReadRAW* subghz_read_raw,
@@ -111,15 +164,17 @@ void subghz_read_raw_update_sample_write(SubGhzReadRAW* instance, size_t sample)
 
 void subghz_read_raw_stop_send(SubGhzReadRAW* instance) {
     furi_assert(instance);
+    bool repeat = false;
 
     with_view_model(
         instance->view,
         SubGhzReadRAWModel * model,
         {
+            model->tx_active = false;
             switch(model->status) {
             case SubGhzReadRAWStatusTXRepeat:
             case SubGhzReadRAWStatusLoadKeyTXRepeat:
-                instance->callback(SubGhzCustomEventViewReadRAWSendStart, instance->context);
+                repeat = true;
                 break;
             case SubGhzReadRAWStatusTX:
                 model->status = SubGhzReadRAWStatusIDLE;
@@ -135,6 +190,7 @@ void subghz_read_raw_stop_send(SubGhzReadRAW* instance) {
             }
         },
         true);
+    if(repeat) instance->callback(SubGhzCustomEventViewReadRAWSendStart, instance->context);
 }
 
 void subghz_read_raw_update_sin(SubGhzReadRAW* instance) {
@@ -368,11 +424,23 @@ void subghz_read_raw_draw(Canvas* canvas, SubGhzReadRAWModel* model) {
         canvas_draw_str(canvas, 128, 40, "RSSI");
         canvas_set_font_direction(canvas, CanvasDirectionLeftToRight);
     }
+    const char* state = NULL;
+    if(model->status == SubGhzReadRAWStatusStart) state = "Ready to record";
+    if(model->status == SubGhzReadRAWStatusREC) state = "Recording RAW";
+    if(model->status == SubGhzReadRAWStatusIDLE) state = "Capture ready";
+    if(graphics_mode == 0) state = model->tx_active ? "TX / Back stops" : "Starting TX...";
+    if(state) {
+        canvas_set_color(canvas, ColorWhite);
+        canvas_draw_box(canvas, 2, 16, canvas_string_width(canvas, state) + 4, 10);
+        canvas_set_color(canvas, ColorBlack);
+        canvas_draw_str(canvas, 4, 24, state);
+    }
 }
 
 bool subghz_read_raw_input(InputEvent* event, void* context) {
     furi_assert(context);
     SubGhzReadRAW* instance = context;
+    int32_t custom_event = -1;
 
     if((event->key == InputKeyOk) &&
        (event->type == InputTypeLong || event->type == InputTypeRepeat)) {
@@ -388,7 +456,8 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                 switch(model->status) {
                 case SubGhzReadRAWStatusIDLE:
                     // Start TX
-                    instance->callback(SubGhzCustomEventViewReadRAWSendStart, instance->context);
+                    model->tx_active = false;
+                    custom_event = SubGhzCustomEventViewReadRAWSendStart;
                     model->status = SubGhzReadRAWStatusTXRepeat;
                     ret = true;
                     break;
@@ -398,7 +467,8 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                     break;
                 case SubGhzReadRAWStatusLoadKeyIDLE:
                     // Start Load Key TX
-                    instance->callback(SubGhzCustomEventViewReadRAWSendStart, instance->context);
+                    model->tx_active = false;
+                    custom_event = SubGhzCustomEventViewReadRAWSendStart;
                     model->status = SubGhzReadRAWStatusLoadKeyTXRepeat;
                     ret = true;
                     break;
@@ -434,27 +504,29 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                 switch(model->status) {
                 case SubGhzReadRAWStatusREC:
                     //Stop REC
-                    instance->callback(SubGhzCustomEventViewReadRAWIDLE, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWIDLE;
                     model->status = SubGhzReadRAWStatusIDLE;
                     break;
+                case SubGhzReadRAWStatusLoadKeyTXRepeat:
                 case SubGhzReadRAWStatusLoadKeyTX:
                     //Stop TxRx
-                    instance->callback(SubGhzCustomEventViewReadRAWTXRXStop, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWTXRXStop;
                     model->status = SubGhzReadRAWStatusLoadKeyIDLE;
                     break;
+                case SubGhzReadRAWStatusTXRepeat:
                 case SubGhzReadRAWStatusTX:
                     //Stop TxRx
-                    instance->callback(SubGhzCustomEventViewReadRAWTXRXStop, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWTXRXStop;
                     model->status = SubGhzReadRAWStatusIDLE;
                     break;
                 case SubGhzReadRAWStatusLoadKeyIDLE:
                     //Exit
-                    instance->callback(SubGhzCustomEventViewReadRAWBack, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWBack;
                     break;
 
                 default:
                     //Exit
-                    instance->callback(SubGhzCustomEventViewReadRAWBack, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWBack;
                     break;
                 }
             },
@@ -467,7 +539,7 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                 if(!model->raw_send_only) {
                     if(model->status == SubGhzReadRAWStatusStart) {
                         //Config
-                        instance->callback(SubGhzCustomEventViewReadRAWConfig, instance->context);
+                        custom_event = SubGhzCustomEventViewReadRAWConfig;
                     } else if(
                         (model->status == SubGhzReadRAWStatusIDLE) ||
                         (model->status == SubGhzReadRAWStatusLoadKeyIDLE)) {
@@ -478,7 +550,7 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                         model->not_showing_samples = true;
                         furi_string_set(model->sample_write, "0 spl.");
                         furi_string_reset(model->file_name);
-                        instance->callback(SubGhzCustomEventViewReadRAWErase, instance->context);
+                        custom_event = SubGhzCustomEventViewReadRAWErase;
                     }
                 }
             },
@@ -491,10 +563,10 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
                 if(!model->raw_send_only) {
                     if(model->status == SubGhzReadRAWStatusIDLE) {
                         //Save
-                        instance->callback(SubGhzCustomEventViewReadRAWSave, instance->context);
+                        custom_event = SubGhzCustomEventViewReadRAWSave;
                     } else if(model->status == SubGhzReadRAWStatusLoadKeyIDLE) {
                         //More
-                        instance->callback(SubGhzCustomEventViewReadRAWMore, instance->context);
+                        custom_event = SubGhzCustomEventViewReadRAWMore;
                     }
                 }
             },
@@ -506,18 +578,21 @@ bool subghz_read_raw_input(InputEvent* event, void* context) {
             {
                 if(model->status == SubGhzReadRAWStatusStart) {
                     //Record
-                    instance->callback(SubGhzCustomEventViewReadRAWREC, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWREC;
                     model->status = SubGhzReadRAWStatusREC;
                     model->ind_write = 0;
                     model->rssi_history_end = false;
                 } else if(model->status == SubGhzReadRAWStatusREC) {
                     //Stop
-                    instance->callback(SubGhzCustomEventViewReadRAWIDLE, instance->context);
+                    custom_event = SubGhzCustomEventViewReadRAWIDLE;
                     model->status = SubGhzReadRAWStatusIDLE;
                 }
             },
             true);
     }
+    // Posting into the dispatcher can block. Never do so while holding the
+    // model lock that the dispatcher may need to finish its current event.
+    if(custom_event >= 0) instance->callback((SubGhzCustomEvent)custom_event, instance->context);
     return true;
 }
 
@@ -527,6 +602,7 @@ void subghz_read_raw_set_status(
     const char* file_name,
     float raw_threshold_rssi) {
     furi_assert(instance);
+    subghz_read_raw_set_tx_active(instance, false);
 
     switch(status) {
     case SubGhzReadRAWStatusStart:

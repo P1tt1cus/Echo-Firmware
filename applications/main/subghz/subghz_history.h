@@ -29,6 +29,9 @@ void subghz_history_reset(SubGhzHistory* instance);
 
 void subghz_history_delete_item(SubGhzHistory* instance, uint16_t idx);
 
+/** Compare complete captured data, protocol and radio settings (not hash alone). */
+bool subghz_history_is_same(SubGhzHistory* instance, uint16_t first, uint16_t second);
+
 /** Get hash data to history[idx]
  * 
  * @param instance - SubGhzHistory instance

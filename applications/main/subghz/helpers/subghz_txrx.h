@@ -17,6 +17,8 @@ typedef enum {
     SubGhzTxRxStartTxStateOk,
     SubGhzTxRxStartTxStateErrorOnlyRx,
     SubGhzTxRxStartTxStateErrorParserOthers,
+    SubGhzTxRxStartTxStateErrorEncoderUnavailable,
+    SubGhzTxRxStartTxStateErrorRadio,
 } SubGhzTxRxStartTxState;
 
 /**
@@ -138,6 +140,9 @@ void subghz_txrx_rx_start(SubGhzTxRx* instance);
  * @param instance Pointer to a SubGhzTxRx
  */
 void subghz_txrx_stop(SubGhzTxRx* instance);
+
+/** Poll completion from the app thread instead of blocking a worker callback. */
+bool subghz_txrx_is_tx_complete(SubGhzTxRx* instance);
 
 /**
  * Set sleep mode CC1101

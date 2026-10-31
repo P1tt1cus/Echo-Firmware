@@ -25,16 +25,31 @@ bool subghz_tx_start(SubGhz* subghz, FlipperFormat* flipper_format) {
     switch(subghz_txrx_tx_start(subghz->txrx, flipper_format)) {
     case SubGhzTxRxStartTxStateErrorParserOthers:
         dialog_message_show_storage_error(
-            subghz->dialogs, "Error in protocol\nparameters\ndescription");
+            subghz->dialogs, "Cannot send capture.\nCheck file, preset\nand protocol data.");
+        break;
+    case SubGhzTxRxStartTxStateErrorEncoderUnavailable:
+        dialog_message_show_storage_error(
+            subghz->dialogs, "No transmit encoder\nfor this protocol.\nCapture retained.");
+        break;
+    case SubGhzTxRxStartTxStateErrorRadio:
+        dialog_message_show_storage_error(
+            subghz->dialogs, "Radio could not start.\nCheck selected radio\nand retry.");
         break;
     case SubGhzTxRxStartTxStateErrorOnlyRx:
         uint32_t frequency = subghz_txrx_get_preset(subghz->txrx).frequency;
         SubGhzTx can_tx = subghz_txrx_radio_device_check_tx(subghz->txrx, frequency);
-        subghz_dialog_message_freq_error(subghz, can_tx);
+        if(can_tx == SubGhzTxAllowed) {
+            dialog_message_show_storage_error(
+                subghz->dialogs, "Radio rejected TX.\nCheck selected radio\nand retry.");
+        } else {
+            subghz_dialog_message_freq_error(subghz, can_tx);
+        }
         break;
 
-    default:
+    case SubGhzTxRxStartTxStateOk:
         return true;
+    default:
+        dialog_message_show_storage_error(subghz->dialogs, "Transmission failed.");
         break;
     }
     return false;
@@ -42,8 +57,7 @@ bool subghz_tx_start(SubGhz* subghz, FlipperFormat* flipper_format) {
 
 void subghz_dialog_message_freq_error(SubGhz* subghz, SubGhzTx can_tx) {
     DialogsApp* dialogs = subghz->dialogs;
-    DialogMessage* message = dialog_message_alloc();
-    const char* header_text = "Transmission is blocked";
+    const char* header_text = "TX unavailable";
     const char* message_text;
 
     switch(can_tx) {
@@ -51,24 +65,26 @@ void subghz_dialog_message_freq_error(SubGhz* subghz, SubGhzTx can_tx) {
     default:
         return;
     case SubGhzTxBlockedRegionNotProvisioned:
-        message_text = "Missing region file.\nReinstall firmware\nwith Web/App\nor bypass region.";
+        message_text =
+            "Region is not configured.\nCheck Region Information\nand restore region data.";
         break;
     case SubGhzTxBlockedRegion:
-        message_text = "Frequency outside\nof region range.\nMNTM > Protocols\n> Bypass Region";
+        message_text =
+            "Receive-only frequency\nunder current region\nsettings. Check Region Info.";
         break;
     case SubGhzTxBlockedDefault:
-        message_text = "Frequency outside\nof default range.\nMNTM > Protocols\n> Extend Bands";
+        message_text = "Outside enabled TX bands.\nCheck capture frequency\nand radio settings.";
         break;
     case SubGhzTxUnsupported:
-        header_text = "Frequency not supported";
-        message_text = "Frequency is\noutside of\nsupported range.";
+        header_text = "Unsupported frequency";
+        message_text =
+            "Selected radio cannot\noperate at this frequency.\nCheck capture settings.";
         break;
     }
 
+    DialogMessage* message = dialog_message_alloc();
     dialog_message_set_header(message, header_text, 64, 3, AlignCenter, AlignTop);
-    dialog_message_set_text(message, message_text, 3, 20, AlignLeft, AlignTop);
-
-    dialog_message_set_icon(message, &I_WarningDolphinFlip_45x42, 83, 22);
+    dialog_message_set_text(message, message_text, 64, 20, AlignCenter, AlignTop);
 
     dialog_message_show(dialogs, message);
     dialog_message_free(message);

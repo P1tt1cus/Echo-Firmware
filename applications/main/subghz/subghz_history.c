@@ -1,6 +1,7 @@
 #include "subghz_history.h"
 #include <lib/subghz/receiver.h>
 #include <rpc/rpc.h>
+#include <flipper_format/flipper_format_i.h>
 
 #include <furi.h>
 
@@ -40,8 +41,50 @@ struct SubGhzHistory {
     Rpc* rpc;
 };
 
+// Hashes only narrow the search. Compare the complete serialized capture, and
+// restore both cursors because callers also use these streams for display/TX.
+static bool subghz_history_data_equal(FlipperFormat* first, FlipperFormat* second) {
+    if(first == second) return true;
+    Stream* a = flipper_format_get_raw_stream(first);
+    Stream* b = flipper_format_get_raw_stream(second);
+    const size_t size = stream_size(a);
+    if(!size || size != stream_size(b)) return false;
+    const size_t a_pos = stream_tell(a), b_pos = stream_tell(b);
+    bool equal = stream_seek(a, 0, StreamOffsetFromStart) &&
+                 stream_seek(b, 0, StreamOffsetFromStart);
+    uint8_t a_data[64], b_data[64];
+    for(size_t offset = 0; equal && offset < size; offset += sizeof(a_data)) {
+        const size_t count = MIN(sizeof(a_data), size - offset);
+        equal = stream_read(a, a_data, count) == count && stream_read(b, b_data, count) == count &&
+                memcmp(a_data, b_data, count) == 0;
+    }
+    const bool a_restored = stream_seek(a, a_pos, StreamOffsetFromStart);
+    const bool b_restored = stream_seek(b, b_pos, StreamOffsetFromStart);
+    return equal && a_restored && b_restored;
+}
+
+static bool subghz_history_item_matches(
+    const SubGhzHistoryItem* item,
+    uint32_t hash,
+    const SubGhzProtocol* protocol,
+    const SubGhzRadioPreset* preset,
+    FlipperFormat* data) {
+    return item->hash_data == hash && item->protocol == protocol &&
+           item->preset->frequency == preset->frequency &&
+           furi_string_equal(item->preset->name, preset->name) &&
+           subghz_history_data_equal(item->flipper_string, data);
+}
+
+bool subghz_history_is_same(SubGhzHistory* instance, uint16_t first, uint16_t second) {
+    const size_t count = SubGhzHistoryItemArray_size(instance->history->data);
+    if(first >= count || second >= count) return false;
+    const SubGhzHistoryItem* a = SubGhzHistoryItemArray_get(instance->history->data, first);
+    const SubGhzHistoryItem* b = SubGhzHistoryItemArray_get(instance->history->data, second);
+    return subghz_history_item_matches(a, b->hash_data, b->protocol, b->preset, b->flipper_string);
+}
+
 SubGhzHistory* subghz_history_alloc(void) {
-    SubGhzHistory* instance = malloc(sizeof(SubGhzHistory));
+    SubGhzHistory* instance = calloc(1, sizeof(SubGhzHistory));
     instance->tmp_string = furi_string_alloc();
     instance->history = malloc(sizeof(SubGhzHistoryStruct));
     SubGhzHistoryItemArray_init(instance->history->data);
@@ -243,9 +286,11 @@ bool subghz_history_add_to_history(
 
     SubGhzProtocolDecoderBase* decoder_base = context;
     uint32_t hash_data = subghz_protocol_decoder_base_get_hash_data_long(decoder_base);
-    if((instance->code_last_hash_data == hash_data) &&
-       ((furi_get_tick() - instance->last_update_timestamp) < 600)) {
-        instance->last_update_timestamp = furi_get_tick();
+    FlipperFormat* capture = flipper_format_string_alloc();
+    if(subghz_protocol_decoder_base_serialize(decoder_base, capture, preset) !=
+       SubGhzProtocolStatusOk) {
+        FURI_LOG_E(TAG, "Capture serialization failed");
+        flipper_format_free(capture);
         return false;
     }
 
@@ -254,8 +299,15 @@ bool subghz_history_add_to_history(
     SubGhzHistoryItemArray_it_last(it, instance->history->data);
     while(!SubGhzHistoryItemArray_end_p(it)) {
         SubGhzHistoryItem* search = SubGhzHistoryItemArray_ref(it);
-        if(search->hash_data == hash_data && search->protocol == decoder_base->protocol) {
-            repeats = search->repeats + 1;
+        if(subghz_history_item_matches(
+               search, hash_data, decoder_base->protocol, preset, capture)) {
+            if(it->index + 1 == (size_t)instance->last_index_write &&
+               (uint32_t)(furi_get_tick() - instance->last_update_timestamp) < 600) {
+                instance->last_update_timestamp = furi_get_tick();
+                flipper_format_free(capture);
+                return false;
+            }
+            repeats = search->repeats < UINT16_MAX ? search->repeats + 1 : UINT16_MAX;
             break;
         }
         SubGhzHistoryItemArray_previous(it);
@@ -285,8 +337,7 @@ bool subghz_history_add_to_history(
     item->longitude = preset->longitude;
 
     item->item_str = furi_string_alloc();
-    item->flipper_string = flipper_format_string_alloc();
-    subghz_protocol_decoder_base_serialize(decoder_base, item->flipper_string, preset);
+    item->flipper_string = capture;
 
     if(decoder_base->protocol && decoder_base->protocol->decoder &&
        decoder_base->protocol->decoder->get_string_brief) {
@@ -355,23 +406,16 @@ bool subghz_history_add_to_history(
 void subghz_history_remove_duplicates(SubGhzHistory* instance) {
     furi_assert(instance);
 
-    SubGhzHistoryItemArray_it_t it;
-    SubGhzHistoryItemArray_it_last(it, instance->history->data);
-    while(!SubGhzHistoryItemArray_end_p(it)) {
-        SubGhzHistoryItem* i = SubGhzHistoryItemArray_ref(it);
-
-        SubGhzHistoryItemArray_it_t jt;
-        SubGhzHistoryItemArray_it_set(jt, it);
-        SubGhzHistoryItemArray_previous(jt);
-        while(!SubGhzHistoryItemArray_end_p(jt)) {
-            SubGhzHistoryItem* j = SubGhzHistoryItemArray_ref(jt);
-
-            if(j->hash_data == i->hash_data && j->protocol == i->protocol) {
-                subghz_history_delete_item(instance, jt->index);
+    // Deleting an earlier entry shifts the retained one. Re-fetch by its adjusted
+    // index instead of retaining an invalidated pointer/iterator across removals.
+    for(int32_t keep = (int32_t)SubGhzHistoryItemArray_size(instance->history->data) - 1; keep > 0;
+        keep--) {
+        for(int32_t earlier = keep - 1; earlier >= 0; earlier--) {
+            if(subghz_history_is_same(instance, earlier, keep)) {
+                subghz_history_delete_item(instance, earlier);
+                keep--;
             }
-            SubGhzHistoryItemArray_previous(jt);
         }
-        SubGhzHistoryItemArray_previous(it);
     }
 }
 

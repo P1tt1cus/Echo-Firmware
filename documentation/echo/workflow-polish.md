@@ -107,3 +107,38 @@ not in source. Never commit captures, credential data or pairing secrets.
   removed after closing NFC. No NFC emulation/transmission or card write performed.
   Screenshots and previous FAP retained locally; no private card data used.
 - Info views reserve a footer for Status; embedded plugin builds included.
+
+### Stage 4: Sub-GHz
+
+- Duplicate detection now requires protocol, frequency, preset and identical
+  serialized capture data. Hash collisions no longer suppress distinct signals,
+  including in the 600 ms repeat filter and live remove-duplicates workflow.
+  Timing/metadata differences intentionally retain distinct captures.
+- Deduplication re-fetches shifted entries after deletion instead of using invalid
+  pointers/iterators. Repeat counts saturate instead of wrapping. Comparison uses
+  two 64-byte buffers and restores stream cursors; serialization failures are not
+  entered as valid captures.
+- RAW input posts events after releasing the model lock. Back cancels held-repeat
+  and single-pass intent; queued repeats cannot restart after cancellation.
+  Existing favorites explicitly request one pass. Completion is polled on the app
+  tick instead of a worker callback that could block while the app joins the worker.
+- RAW displays ready/recording/capture-ready and requested-versus-active TX status;
+  existing frequency, preset, radio and sample-count feedback remains visible.
+- TX errors distinguish invalid capture/preset, missing encoder, frequency/region
+  restriction and radio start failure. Missing preset data is rejected before radio
+  setup. Failed-start and stop paths clear freed transmitter pointers and tolerate
+  a missing decoder; dynamic-save behavior remains intact.
+- Replay Bench remembers its menu action and source selection, displays capture
+  filenames, and records specific start failure causes. Its isolated memory footprint,
+  bounded replay, cancellation and source-preserving working copies remain intact.
+- `echo_subghz_history_test.py`: PASS (ASAN/UBSAN), forced hash collisions,
+  protocol/frequency/preset distinctions, full-data comparison across chunks,
+  cursor restoration, serialization failure, timing wrap/boundary, repeat saturation
+  and repeated/adjacent removals using real m-array and production history functions.
+- `echo_subghz_control_test.py`: PASS (ASAN/UBSAN), actual RAW input/stop helpers
+  and TX-start/stop/completion functions with radio/decoder adapters. Checks unlocked
+  callbacks, hold/release/Back/favorite intent, failure cleanup and error distinctions.
+  Existing Replay Bench parser/control suites also pass, including new error text.
+- Physical transmission, repeat timing and receiver response remain unverified.
+  Existing native RAW file-worker malformed-file/progress behavior is queued for
+  stage 7's corrupt-file handling review; it is not claimed fixed by these app changes.

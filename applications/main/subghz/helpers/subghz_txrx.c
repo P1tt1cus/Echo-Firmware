@@ -337,23 +337,19 @@ SubGhzTxRxStartTxState subghz_txrx_tx_start(SubGhzTxRx* instance, FlipperFormat*
         if(instance->transmitter) {
             if(subghz_transmitter_deserialize(instance->transmitter, flipper_format) ==
                SubGhzProtocolStatusOk) {
-                if(strcmp(furi_string_get_cstr(preset->name), "") != 0) {
-                    subghz_txrx_begin(
-                        instance,
+                uint8_t* preset_data =
+                    furi_string_empty(preset->name) ?
+                        NULL :
                         subghz_setting_get_preset_data_by_name(
-                            instance->setting, furi_string_get_cstr(preset->name)));
-                    if(preset->frequency) {
-                        if(!subghz_txrx_tx(instance, preset->frequency)) {
-                            FURI_LOG_E(TAG, "Only Rx");
-                            ret = SubGhzTxRxStartTxStateErrorOnlyRx;
-                        }
-                    } else {
-                        ret = SubGhzTxRxStartTxStateErrorParserOthers;
+                            instance->setting, furi_string_get_cstr(preset->name));
+                if(preset_data && preset->frequency) {
+                    subghz_txrx_begin(instance, preset_data);
+                    if(!subghz_txrx_tx(instance, preset->frequency)) {
+                        FURI_LOG_E(TAG, "Radio rejected TX");
+                        ret = SubGhzTxRxStartTxStateErrorOnlyRx;
                     }
-
                 } else {
-                    FURI_LOG_E(
-                        TAG, "Unknown name preset \" %s \"", furi_string_get_cstr(preset->name));
+                    FURI_LOG_E(TAG, "Missing preset data or frequency");
                     ret = SubGhzTxRxStartTxStateErrorParserOthers;
                 }
 
@@ -363,17 +359,21 @@ SubGhzTxRxStartTxState subghz_txrx_tx_start(SubGhzTxRx* instance, FlipperFormat*
                            instance->radio_device,
                            subghz_transmitter_yield,
                            instance->transmitter)) {
-                        ret = SubGhzTxRxStartTxStateErrorParserOthers;
+                        ret = SubGhzTxRxStartTxStateErrorRadio;
                     }
                 }
             } else {
                 ret = SubGhzTxRxStartTxStateErrorParserOthers;
             }
         } else {
-            ret = SubGhzTxRxStartTxStateErrorParserOthers;
+            ret = SubGhzTxRxStartTxStateErrorEncoderUnavailable;
         }
         if(ret != SubGhzTxRxStartTxStateOk) {
-            if(instance->transmitter) subghz_transmitter_free(instance->transmitter);
+            if(instance->transmitter) {
+                subghz_transmitter_stop(instance->transmitter);
+                subghz_transmitter_free(instance->transmitter);
+                instance->transmitter = NULL;
+            }
             if(instance->txrx_state != SubGhzTxRxStateIDLE) {
                 subghz_txrx_idle(instance);
             }
@@ -403,6 +403,11 @@ void subghz_txrx_set_need_save_callback(
     instance->need_save_context = context;
 }
 
+bool subghz_txrx_is_tx_complete(SubGhzTxRx* instance) {
+    return instance->txrx_state == SubGhzTxRxStateTx &&
+           subghz_devices_is_async_complete_tx(instance->radio_device);
+}
+
 static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
     furi_assert(instance);
     furi_assert(instance->txrx_state == SubGhzTxRxStateTx);
@@ -410,9 +415,11 @@ static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
     subghz_devices_stop_async_tx(instance->radio_device);
     subghz_transmitter_stop(instance->transmitter);
     subghz_transmitter_free(instance->transmitter);
+    instance->transmitter = NULL;
 
     //if protocol dynamic then we save the last upload
-    if(instance->decoder_result->protocol->type == SubGhzProtocolTypeDynamic) {
+    if(instance->decoder_result &&
+       instance->decoder_result->protocol->type == SubGhzProtocolTypeDynamic) {
         if(instance->need_save_callback) {
             instance->need_save_callback(instance->need_save_context);
         }

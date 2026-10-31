@@ -1,6 +1,6 @@
 # Sub-GHz Replay Bench
 
-**Echo Replay Bench 1.0** is a separate app, launched from the **Sub-GHz 1.2**
+**Echo Replay Bench 1.1** is a separate app, launched from the **Sub-GHz 1.3**
 dashboard, targeting f7/API 87.1. It uses the Flipper's internal CC1101; no ESP32 or external radio is needed.
 Open **Tools → Sub-GHz → Replay Bench**, or **Apps → Sub-GHz → Echo Replay Bench**.
 The dashboard closes before launching the bench to leave memory for file browsing
@@ -11,6 +11,11 @@ and RAW playback; Back returns to Sub-GHz when launched through that dashboard.
 1. Choose **Capture A**, then **Capture B**, from saved `.sub` files.
 2. Open **Compare A / B**. Up/Down scrolls the report; Back returns.
 3. Use **Save comparison** to export a text report without transmitting.
+
+The menu shows selected capture filenames and restores the last action after
+returning from a report or preparation. Each file picker reopens at its previous
+selection. Start failures identify capture parameters, missing encoders or radio
+rejection separately; these messages are not receiver-acceptance evidence.
 
 The bench compares frequency, preset name, protocol and declared bit count. For
 matching decoded protocols and bit widths with available keys, it shows the

@@ -172,13 +172,11 @@ static void subghz_scene_add_to_history_callback(
             subghz->state_notifications = SubGhzNotificationStateRxDone;
 
             if(subghz->remove_duplicates) {
-                // Look in history for signal hash
-                uint32_t hash_data = subghz_protocol_decoder_base_get_hash_data_long(decoder_base);
+                // Compare capture data as well as hash/protocol/radio settings.
                 subghz_view_receiver_disable_draw_callback(subghz->subghz_receiver);
                 for(uint16_t i = idx; i > 0; i--) {
                     i--; // Iterating in reverse with off by one
-                    if(subghz_history_get_hash_data(subghz->history, i) == hash_data &&
-                       subghz_history_get_protocol(subghz->history, i) == decoder_base->protocol) {
+                    if(subghz_history_is_same(subghz->history, i, idx)) {
                         // Remove previous instance and update menu index
                         subghz_history_delete_item(subghz->history, i);
                         subghz_view_receiver_delete_item(subghz->subghz_receiver, i);

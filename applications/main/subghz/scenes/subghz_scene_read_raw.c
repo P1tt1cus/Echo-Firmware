@@ -63,13 +63,6 @@ void subghz_scene_read_raw_callback(SubGhzCustomEvent event, void* context) {
     view_dispatcher_send_custom_event(subghz->view_dispatcher, event);
 }
 
-void subghz_scene_read_raw_callback_end_tx(void* context) {
-    furi_assert(context);
-    SubGhz* subghz = context;
-    view_dispatcher_send_custom_event(
-        subghz->view_dispatcher, SubGhzCustomEventViewReadRAWSendStop);
-}
-
 void subghz_scene_read_raw_on_enter(void* context) {
     SubGhz* subghz = context;
     FuriString* file_name = furi_string_alloc();
@@ -130,6 +123,7 @@ void subghz_scene_read_raw_on_enter(void* context) {
 
     // Start sending immediately with favorites
     if(subghz->fav_timeout) {
+        subghz_read_raw_start_send(subghz->subghz_read_raw);
         scene_manager_handle_custom_event(
             subghz->scene_manager, SubGhzCustomEventViewReadRAWSendStart);
     }
@@ -179,6 +173,7 @@ bool subghz_scene_read_raw_on_event(void* context, SceneManagerEvent event) {
 
         case SubGhzCustomEventViewReadRAWTXRXStop:
             subghz_txrx_stop(subghz->txrx);
+            subghz_read_raw_cancel_send(subghz->subghz_read_raw);
             subghz->state_notifications = SubGhzNotificationStateIDLE;
             consumed = true;
             break;
@@ -226,25 +221,26 @@ bool subghz_scene_read_raw_on_event(void* context, SceneManagerEvent event) {
             break;
 
         case SubGhzCustomEventViewReadRAWSendStart:
-
+            // A completion/repeat event may have been queued before Back stopped
+            // the run. It must not restart transmission after cancellation.
+            if(!subghz_read_raw_is_tx_requested(subghz->subghz_read_raw)) {
+                consumed = true;
+                break;
+            }
             if(subghz_file_available(subghz) && subghz_scene_read_raw_update_filename(subghz)) {
                 //start send
                 subghz->state_notifications = SubGhzNotificationStateIDLE;
                 if(!subghz_tx_start(subghz, subghz_txrx_get_fff_data(subghz->txrx))) {
                     subghz_rx_key_state_set(subghz, SubGhzRxKeyStateBack);
-                    subghz_read_raw_set_status(
-                        subghz->subghz_read_raw,
-                        SubGhzReadRAWStatusIDLE,
-                        "",
-                        subghz_threshold_rssi_get(subghz->threshold_rssi));
+                    subghz_read_raw_cancel_send(subghz->subghz_read_raw);
                 } else {
+                    subghz_read_raw_set_tx_active(subghz->subghz_read_raw, true);
                     if(scene_manager_has_previous_scene(subghz->scene_manager, SubGhzSceneSaved) ||
                        !scene_manager_has_previous_scene(subghz->scene_manager, SubGhzSceneStart)) {
                         dolphin_deed(DolphinDeedSubGhzSend);
                     }
-                    // set callback end tx
-                    subghz_txrx_set_raw_file_encoder_worker_callback_end(
-                        subghz->txrx, subghz_scene_read_raw_callback_end_tx, subghz);
+                    // Completion is polled on Tick. A worker callback posting to
+                    // a full dispatcher queue can deadlock when Stop joins it.
                     subghz->state_notifications = SubGhzNotificationStateTx;
                 }
             } else {
@@ -354,6 +350,11 @@ bool subghz_scene_read_raw_on_event(void* context, SceneManagerEvent event) {
             subghz_protocol_raw_save_to_file_pause(decoder_raw, !ret_rssi.is_above);
             break;
         case SubGhzNotificationStateTx:
+            if(subghz_txrx_is_tx_complete(subghz->txrx)) {
+                scene_manager_handle_custom_event(
+                    subghz->scene_manager, SubGhzCustomEventViewReadRAWSendStop);
+                break;
+            }
             notification_message(subghz->notifications, &sequence_blink_magenta_10);
             subghz_read_raw_update_sin(subghz->subghz_read_raw);
             break;
