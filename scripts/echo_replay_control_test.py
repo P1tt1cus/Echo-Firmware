@@ -60,7 +60,7 @@ typedef struct SubGhzReplayBench SubGhzReplayBench;
 typedef struct {SubGhzReplayBench* replay_bench;TxRx* txrx;void* view_dispatcher;void* widget;void* submenu;void* scene_manager;int state_notifications;} SubGhz;
 typedef enum {SceneManagerEventTypeCustom,SceneManagerEventTypeBack,SceneManagerEventTypeTick} EventType;
 typedef struct {EventType type;uint32_t event;} SceneManagerEvent;
-enum {SubGhzProtocolTypeStatic,SubGhzProtocolTypeDynamic,SubGhzNotificationStateIDLE,SubGhzNotificationStateTx,SubGhzTxRxStartTxStateOk,SubGhzTxRxStartTxStateErrorParserOthers,SubGhzViewIdMenu};
+enum {SubGhzProtocolTypeStatic,SubGhzProtocolTypeDynamic,SubGhzNotificationStateIDLE,SubGhzNotificationStateTx,SubGhzTxRxStartTxStateOk,SubGhzTxRxStartTxStateErrorParserOthers,SubGhzTxRxStartTxStateErrorOnlyRx,SubGhzTxRxStartTxStateErrorEncoderUnavailable,SubGhzTxRxStartTxStateErrorRadio,SubGhzViewIdMenu};
 typedef int SubGhzTxRxStartTxState;
 static struct {bool endless_tx;} subghz_block_generic_global;
 static uint32_t tick,repeat_value,posted;
@@ -131,8 +131,12 @@ int main(void){
  bench_prepare(&s);reserve_ok=false;bench_send(&s);assert(starts==before);reserve_ok=true;
  bench_prepare(&s);report_ok=false;bench_send(&s);assert(starts==before&&strstr(b.test_status->data,"Not started"));report_ok=true;
  bench_prepare(&s);start_result=SubGhzTxRxStartTxStateErrorParserOthers;bench_send(&s);assert(starts==before+1&&strstr(b.test_status->data,"Start failed"));
+ const int errors[]={SubGhzTxRxStartTxStateErrorOnlyRx,SubGhzTxRxStartTxStateErrorEncoderUnavailable,SubGhzTxRxStartTxStateErrorRadio};
+ const char* reasons[]={"frequency blocked", "no transmit encoder", "radio start rejected"};
+ for(unsigned i=0;i<3;i++){bench_prepare(&s);start_result=errors[i];bench_send(&s);assert(b.mode==BenchPage&&strstr(b.test_status->data,reasons[i]));}
  event(&s,SceneManagerEventTypeCustom,BenchObserve);assert(b.mode==BenchObservation);
  event(&s,SceneManagerEventTypeCustom,BenchAccepted);assert(strcmp(b.observation,"Expected response")==0&&b.report_saved);
+ event(&s,SceneManagerEventTypeBack,0);event(&s,SceneManagerEventTypeCustom,BenchHelp);assert(b.menu_selected==BenchHelp);
  furi_string_free(b.report_base);furi_string_free(b.report_path);furi_string_free(b.test_status);furi_string_free(b.snapshot[0]);
  puts("PASS: production replay prepare/send guards, no auto TX, duplicate events, cancellation, deadline, clock wrap, storage/start failures and manual observation");
 }

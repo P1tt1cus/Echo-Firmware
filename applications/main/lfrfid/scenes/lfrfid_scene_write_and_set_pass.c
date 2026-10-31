@@ -61,14 +61,22 @@ bool lfrfid_scene_write_and_set_pass_on_event(void* context, SceneManagerEvent e
         } else if(
             (event.event == LfRfidEventWriteFobCannotBeWritten) ||
             (event.event == LfRfidEventWriteTooLongToWrite)) {
-            popup_set_icon(popup, 83, 22, &I_WarningDolphinFlip_45x42);
-            popup_set_header(popup, "Still trying to write...", 64, 3, AlignCenter, AlignTop);
+            const bool mismatch = event.event == LfRfidEventWriteFobCannotBeWritten;
+            popup_set_icon(popup, 0, 0, NULL);
+            popup_set_header(
+                popup,
+                mismatch ? "Read-back differs" : "Not verified yet",
+                64,
+                2,
+                AlignCenter,
+                AlignTop);
             popup_set_text(
                 popup,
-                "Make sure this\ncard is writable\nand not\nprotected.",
-                3,
-                17,
-                AlignLeft,
+                mismatch ? "Retrying write...\nCheck tag / placement.\nBack stops." :
+                           "Retrying write...\nUse a writable tag.\nBack stops.",
+                64,
+                20,
+                AlignCenter,
                 AlignTop);
             notification_message(app->notifications, &sequence_blink_start_yellow);
             consumed = true;

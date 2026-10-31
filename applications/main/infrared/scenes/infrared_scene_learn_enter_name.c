@@ -63,6 +63,7 @@ bool infrared_scene_learn_enter_name_on_event(void* context, SceneManagerEvent e
                     infrared_add_remote_with_button(infrared, signal_name, signal) :
                     infrared_remote_append_signal(infrared->remote, signal, signal_name);
 
+            infrared_show_save_recovery(infrared);
             if(!INFRARED_ERROR_PRESENT(error)) {
                 scene_manager_next_scene(scene_manager, InfraredSceneLearnDone);
                 dolphin_deed(DolphinDeedIrSave);
@@ -71,9 +72,8 @@ bool infrared_scene_learn_enter_name_on_event(void* context, SceneManagerEvent e
                     infrared,
                     "Failed to\n%s",
                     infrared->app_state.is_learning_new_remote ? "create file" : "add signal");
-                const uint32_t possible_scenes[] = {InfraredSceneRemoteList, InfraredSceneStart};
-                scene_manager_search_and_switch_to_previous_scene_one_of(
-                    scene_manager, possible_scenes, COUNT_OF(possible_scenes));
+                // Keep the learned signal and entered name available for retry.
+                view_dispatcher_switch_to_view(infrared->view_dispatcher, InfraredViewTextInput);
             }
             consumed = true;
         }

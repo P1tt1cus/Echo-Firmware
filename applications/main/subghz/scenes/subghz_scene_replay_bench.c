@@ -57,6 +57,7 @@ struct SubGhzReplayBench {
     uint32_t started_tick;
     uint32_t elapsed_ms;
     bool prepared_raw;
+    uint32_t menu_selected;
 };
 
 static void bench_menu(SubGhz* subghz);
@@ -103,24 +104,26 @@ static void bench_menu(SubGhz* subghz) {
     b->mode = BenchMenu;
     submenu_reset(subghz->submenu);
     submenu_set_header(subghz->submenu, "Replay Bench");
-    submenu_add_item(
-        subghz->submenu,
-        b->loaded[0] ? "Capture A: loaded" : "Choose capture A",
-        BenchSelectA,
-        bench_callback,
-        subghz);
-    submenu_add_item(
-        subghz->submenu,
-        b->loaded[1] ? "Capture B: loaded" : "Choose capture B",
-        BenchSelectB,
-        bench_callback,
-        subghz);
+    FuriString* label = furi_string_alloc();
+    for(unsigned i = 0; i < 2; i++) {
+        if(b->loaded[i]) {
+            const char* path = furi_string_get_cstr(b->source[i]);
+            const char* name = strrchr(path, '/');
+            furi_string_printf(label, "%c: %s", 'A' + i, name ? name + 1 : path);
+        } else {
+            furi_string_printf(label, "Choose capture %c", 'A' + i);
+        }
+        submenu_add_item(
+            subghz->submenu, furi_string_get_cstr(label), BenchSelectA + i, bench_callback, subghz);
+    }
+    furi_string_free(label);
     submenu_add_item(subghz->submenu, "Compare A / B", BenchCompare, bench_callback, subghz);
     submenu_add_item(subghz->submenu, "Prepare A replay", BenchPrepare, bench_callback, subghz);
     submenu_add_item(
         subghz->submenu, "Last test / observation", BenchLastTest, bench_callback, subghz);
     submenu_add_item(subghz->submenu, "Save comparison", BenchExport, bench_callback, subghz);
     submenu_add_item(subghz->submenu, "Help", BenchHelp, bench_callback, subghz);
+    submenu_set_selected_item(subghz->submenu, b->menu_selected);
     view_dispatcher_switch_to_view(subghz->view_dispatcher, SubGhzViewIdMenu);
 }
 
@@ -173,7 +176,9 @@ static void bench_select(SubGhz* subghz, unsigned slot) {
         bench_page(subghz, "Choose capture A first.", BenchPage, NULL);
         return;
     }
-    FuriString* path = furi_string_alloc_set(EXT_PATH("subghz"));
+    FuriString* path = furi_string_alloc_set(
+        furi_string_empty(b->source[slot]) ? EXT_PATH("subghz") :
+                                             furi_string_get_cstr(b->source[slot]));
     DialogsFileBrowserOptions options;
     dialog_file_browser_set_basic_options(&options, ".sub", NULL);
     options.base_path = EXT_PATH("subghz");
@@ -465,7 +470,14 @@ static void bench_send(SubGhz* subghz) {
     SubGhzTxRxStartTxState result =
         subghz_txrx_tx_start(subghz->txrx, subghz_txrx_get_fff_data(subghz->txrx));
     if(result != SubGhzTxRxStartTxStateOk) {
-        furi_string_set(b->test_status, "Start failed; no completed transmission");
+        const char* reason = "Start failed: invalid capture/preset parameters";
+        if(result == SubGhzTxRxStartTxStateErrorOnlyRx)
+            reason = "Start failed: frequency blocked or radio rejected TX";
+        else if(result == SubGhzTxRxStartTxStateErrorEncoderUnavailable)
+            reason = "Start failed: no transmit encoder for protocol";
+        else if(result == SubGhzTxRxStartTxStateErrorRadio)
+            reason = "Start failed: asynchronous radio start rejected";
+        furi_string_set(b->test_status, reason);
         bench_write_report(b);
         bench_show_result(subghz);
         return;
@@ -527,6 +539,7 @@ void subghz_scene_replay_bench_on_enter(void* context) {
     b->test_status = furi_string_alloc();
     b->observation = "Unknown / not observed";
     b->report_saved = true;
+    b->menu_selected = BenchSelectA;
     b->previous_radio = subghz_txrx_radio_device_get(subghz->txrx);
     subghz_txrx_stop(subghz->txrx);
     subghz_txrx_sleep(subghz->txrx);
@@ -609,6 +622,7 @@ bool subghz_scene_replay_bench_on_event(void* context, SceneManagerEvent event) 
         return true;
     }
     if(b->mode != BenchMenu) return true;
+    if(event.event >= BenchSelectA && event.event <= BenchHelp) b->menu_selected = event.event;
     switch(event.event) {
     case BenchSelectA:
         bench_select(subghz, 0);

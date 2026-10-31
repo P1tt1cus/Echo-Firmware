@@ -93,6 +93,7 @@ bool infrared_scene_edit_rename_on_event(void* context, SceneManagerEvent event)
             InfraredAppState* app_state = &infrared->app_state;
 
             if(!INFRARED_ERROR_PRESENT(task_error)) {
+                app_state->current_button_index = InfraredButtonIndexNone;
                 scene_manager_next_scene(scene_manager, InfraredSceneEditRenameDone);
             } else {
                 bool long_signal = INFRARED_ERROR_CHECK(
@@ -110,12 +111,9 @@ bool infrared_scene_edit_rename_on_event(void* context, SceneManagerEvent event)
 
                 infrared_show_error_message(infrared, format, target);
 
-                const uint32_t possible_scenes[] = {InfraredSceneRemoteList, InfraredSceneRemote};
-                scene_manager_search_and_switch_to_previous_scene_one_of(
-                    scene_manager, possible_scenes, COUNT_OF(possible_scenes));
+                // Keep the selected button and edited name for another attempt.
+                view_dispatcher_switch_to_view(infrared->view_dispatcher, InfraredViewTextInput);
             }
-
-            app_state->current_button_index = InfraredButtonIndexNone;
         }
         consumed = true;
     }

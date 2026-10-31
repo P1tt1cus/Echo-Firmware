@@ -50,6 +50,8 @@ void lfrfid_scene_read_on_enter(void* context) {
         lfrfid_view_read_set_read_mode(app->read_view, LfRfidReadPskOnly);
     } else if(app->read_type == LFRFIDWorkerReadTypeASKOnly) {
         lfrfid_view_read_set_read_mode(app->read_view, LfRfidReadAskOnly);
+    } else {
+        lfrfid_view_read_set_read_mode(app->read_view, LfRfidReadAsk);
     }
 
     lfrfid_worker_start_thread(app->lfworker);
@@ -66,14 +68,17 @@ bool lfrfid_scene_read_on_event(void* context, SceneManagerEvent event) {
 
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == LfRfidEventReadSenseStart) {
+            lfrfid_view_read_set_status(app->read_view, LfRfidReadSignal);
             notification_message(app->notifications, &sequence_blink_set_yellow);
             consumed = true;
         } else if(event.event == LfRfidEventReadSenseCardStart) {
+            lfrfid_view_read_set_status(app->read_view, LfRfidReadChecking);
             notification_message(app->notifications, &sequence_blink_set_green);
             consumed = true;
         } else if(
             (event.event == LfRfidEventReadSenseEnd) ||
             (event.event == LfRfidEventReadSenseCardEnd)) {
+            lfrfid_view_read_set_status(app->read_view, LfRfidReadSearching);
             notification_message(app->notifications, &sequence_blink_set_cyan);
             consumed = true;
         } else if(event.event == LfRfidEventReadDone) {

@@ -7,7 +7,7 @@
 
 #include <toolbox/m_cstr_dup.h>
 
-#define LIST_ITEMS    4U
+#define LIST_ITEMS    3U
 #define LIST_LINE_H   13U
 #define HEADER_H      12U
 #define MOVE_X_OFFSET 5U
@@ -30,140 +30,111 @@ typedef struct {
 
 static void infrared_move_view_draw_callback(Canvas* canvas, void* _model) {
     InfraredMoveViewModel* model = _model;
-
+    const size_t count = InfraredMoveViewItemArray_size(model->labels);
     canvas_set_color(canvas, ColorBlack);
-    canvas_set_font(canvas, FontPrimary);
-    elements_multiline_text_aligned(
-        canvas, canvas_width(canvas) / 2, 0, AlignCenter, AlignTop, "Select a Button to Move");
-
-    const size_t btn_number = InfraredMoveViewItemArray_size(model->labels);
-    const bool show_scrollbar = btn_number > LIST_ITEMS;
-
     canvas_set_font(canvas, FontSecondary);
-
-    for(uint32_t i = 0; i < MIN(btn_number, LIST_ITEMS); i++) {
-        int32_t idx = CLAMP((uint32_t)(i + model->list_offset), btn_number, 0U);
-        uint8_t x_offset = (model->is_moving && model->current_idx == idx) ? MOVE_X_OFFSET : 0;
-        uint8_t y_offset = HEADER_H + i * LIST_LINE_H;
-        uint8_t box_end_x = canvas_width(canvas) - (show_scrollbar ? 6 : 1);
-
+    char header[32];
+    snprintf(
+        header,
+        sizeof(header),
+        "Reorder  %lu/%lu",
+        count ? (unsigned long)model->current_idx + 1 : 0,
+        (unsigned long)count);
+    canvas_draw_str(canvas, 2, 9, header);
+    canvas_draw_line(canvas, 0, 11, 127, 11);
+    for(size_t row = 0; row < LIST_ITEMS && row + model->list_offset < count; row++) {
+        size_t index = row + model->list_offset;
+        uint8_t x = model->is_moving && model->current_idx == (int32_t)index ? MOVE_X_OFFSET : 0;
+        uint8_t y = HEADER_H + row * LIST_LINE_H;
         canvas_set_color(canvas, ColorBlack);
-        if(model->current_idx == idx) {
-            canvas_draw_box(canvas, x_offset, y_offset, box_end_x - x_offset, LIST_LINE_H);
-
+        if(model->current_idx == (int32_t)index) {
+            canvas_draw_box(canvas, x, y, 123 - x, LIST_LINE_H);
             canvas_set_color(canvas, ColorWhite);
-            canvas_draw_dot(canvas, x_offset, y_offset);
-            canvas_draw_dot(canvas, x_offset + 1, y_offset);
-            canvas_draw_dot(canvas, x_offset, y_offset + 1);
-            canvas_draw_dot(canvas, x_offset, y_offset + LIST_LINE_H - 1);
-            canvas_draw_dot(canvas, box_end_x - 1, y_offset);
-            canvas_draw_dot(canvas, box_end_x - 1, y_offset + LIST_LINE_H - 1);
         }
-        canvas_draw_str_aligned(
-            canvas,
-            x_offset + 3,
-            y_offset + 3,
-            AlignLeft,
-            AlignTop,
-            *InfraredMoveViewItemArray_cget(model->labels, idx));
+        char label[128];
+        strlcpy(label, *InfraredMoveViewItemArray_cget(model->labels, index), sizeof(label));
+        size_t length = strlen(label);
+        while(length && canvas_string_width(canvas, label) > 119 - x)
+            label[--length] = 0;
+        canvas_draw_str(canvas, x + 2, y + 10, label);
     }
-
-    if(show_scrollbar) {
+    canvas_set_color(canvas, ColorBlack);
+    if(!count) canvas_draw_str(canvas, 2, 30, "No buttons");
+    if(count > LIST_ITEMS) {
         elements_scrollbar_pos(
-            canvas,
-            canvas_width(canvas),
-            HEADER_H,
-            canvas_height(canvas) - HEADER_H,
-            model->current_idx,
-            btn_number);
+            canvas, 128, HEADER_H, LIST_ITEMS * LIST_LINE_H, model->current_idx, count);
     }
+    canvas_draw_line(canvas, 0, 53, 127, 53);
+    canvas_draw_str(
+        canvas, 2, 63, model->is_moving ? "OK save  Back cancel" : "OK pick  Back exit");
 }
 
 static void update_list_offset(InfraredMoveViewModel* model) {
-    const size_t btn_number = InfraredMoveViewItemArray_size(model->labels);
-    const int32_t bounds = btn_number > (LIST_ITEMS - 1) ? 2 : btn_number;
+    if(model->current_idx < model->list_offset) model->list_offset = model->current_idx;
+    if(model->current_idx >= model->list_offset + (int32_t)LIST_ITEMS) {
+        model->list_offset = model->current_idx - LIST_ITEMS + 1;
+    }
+}
 
-    if((btn_number > (LIST_ITEMS - 1)) && (model->current_idx >= ((int32_t)btn_number - 1))) {
-        model->list_offset = model->current_idx - (LIST_ITEMS - 1);
-    } else if(model->list_offset < model->current_idx - bounds) {
-        model->list_offset =
-            CLAMP(model->current_idx - (int32_t)(LIST_ITEMS - 2), (int32_t)btn_number - bounds, 0);
-    } else if(model->list_offset > model->current_idx - bounds) {
-        model->list_offset = CLAMP(model->current_idx - 1, (int32_t)btn_number - bounds, 0);
+static void infrared_move_view_reorder(InfraredMoveViewModel* model, int32_t from, int32_t to) {
+    // Adjacent swaps also preserve insertion order when moving across the list
+    // boundary; swapping the endpoints alone would display a different result.
+    while(from < to) {
+        InfraredMoveViewItemArray_swap_at(model->labels, from, from + 1);
+        from++;
+    }
+    while(from > to) {
+        InfraredMoveViewItemArray_swap_at(model->labels, from, from - 1);
+        from--;
     }
 }
 
 static bool infrared_move_view_input_callback(InputEvent* event, void* context) {
     InfraredMoveView* move_view = context;
-
     bool consumed = false;
-
-    if((event->type == InputTypeShort || event->type == InputTypeRepeat) &&
-       ((event->key == InputKeyUp) || (event->key == InputKeyDown))) {
-        with_view_model(
-            move_view->view,
-            InfraredMoveViewModel * model,
-            {
-                const size_t btn_number = InfraredMoveViewItemArray_size(model->labels);
-                const int32_t item_idx_prev = model->current_idx;
-
-                if(event->key == InputKeyUp) {
-                    if(model->current_idx <= 0) {
-                        model->current_idx = btn_number;
+    bool commit = false;
+    uint32_t from = 0, to = 0;
+    with_view_model(
+        move_view->view,
+        InfraredMoveViewModel * model,
+        {
+            const int32_t count = InfraredMoveViewItemArray_size(model->labels);
+            if((event->type == InputTypeShort || event->type == InputTypeRepeat) &&
+               (event->key == InputKeyUp || event->key == InputKeyDown)) {
+                consumed = true;
+                if(count) {
+                    int32_t previous = model->current_idx;
+                    model->current_idx =
+                        (previous + (event->key == InputKeyUp ? count - 1 : 1)) % count;
+                    if(model->is_moving)
+                        infrared_move_view_reorder(model, previous, model->current_idx);
+                    update_list_offset(model);
+                }
+            } else if(event->key == InputKeyOk && event->type == InputTypeShort) {
+                consumed = true;
+                if(count) {
+                    if(model->is_moving) {
+                        from = model->start_idx;
+                        to = model->current_idx;
+                        commit = from != to;
+                    } else {
+                        model->start_idx = model->current_idx;
                     }
-                    model->current_idx--;
-
-                } else if(event->key == InputKeyDown) {
-                    model->current_idx++;
-                    if(model->current_idx >= (int32_t)(btn_number)) {
-                        model->current_idx = 0;
-                    }
+                    model->is_moving = !model->is_moving;
                 }
-
-                if(model->is_moving) {
-                    InfraredMoveViewItemArray_swap_at(
-                        model->labels, item_idx_prev, model->current_idx);
+            } else if(event->key == InputKeyBack && model->is_moving) {
+                consumed = true;
+                if(event->type == InputTypeShort) {
+                    infrared_move_view_reorder(model, model->current_idx, model->start_idx);
+                    model->current_idx = model->start_idx;
+                    model->is_moving = false;
+                    update_list_offset(model);
                 }
-
-                update_list_offset(model);
-            },
-            true);
-
-        consumed = true;
-
-    } else if((event->key == InputKeyOk) && (event->type == InputTypeShort)) {
-        with_view_model(
-            move_view->view,
-            InfraredMoveViewModel * model,
-            {
-                if(!model->is_moving) {
-                    model->start_idx = model->current_idx;
-                } else if(move_view->callback) {
-                    move_view->callback(
-                        model->start_idx, model->current_idx, move_view->callback_context);
-                }
-                model->is_moving = !(model->is_moving);
-            },
-            true);
-
-        consumed = true;
-
-    } else if(event->key == InputKeyBack) {
-        with_view_model(
-            move_view->view,
-            InfraredMoveViewModel * model,
-            {
-                if(model->is_moving && move_view->callback) {
-                    move_view->callback(
-                        model->start_idx, model->current_idx, move_view->callback_context);
-                }
-                model->is_moving = false;
-            },
-            false);
-
-        // Not consuming, Back event is passed thru
-    }
-
+            }
+        },
+        consumed);
+    // Posting a task while holding the model lock can block drawing or teardown.
+    if(commit && move_view->callback) move_view->callback(from, to, move_view->callback_context);
     return consumed;
 }
 
@@ -196,11 +167,12 @@ void infrared_move_view_reset(InfraredMoveView* move_view) {
             model->is_moving = false;
         },
         false);
+    move_view->callback = NULL;
     move_view->callback_context = NULL;
 }
 
 InfraredMoveView* infrared_move_view_alloc(void) {
-    InfraredMoveView* move_view = malloc(sizeof(InfraredMoveView));
+    InfraredMoveView* move_view = calloc(1, sizeof(InfraredMoveView));
 
     move_view->view = view_alloc();
     view_allocate_model(move_view->view, ViewModelTypeLocking, sizeof(InfraredMoveViewModel));

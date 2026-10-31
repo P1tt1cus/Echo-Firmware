@@ -1,4 +1,5 @@
 #include "../echo/echo_dashboard.h"
+#include "../echo/echo_file_save.h"
 #include "nfc_app_i.h"
 #include "api/nfc_app_api_interface.h"
 #include "helpers/protocol_support/nfc_protocol_support.h"
@@ -268,16 +269,45 @@ void nfc_make_app_folders(NfcApp* instance) {
     }
 }
 
+static bool nfc_write_file(const char* path, void* context) {
+    NfcApp* instance = context;
+    return nfc_device_save(instance->nfc_device, path);
+}
+
 bool nfc_save_file(NfcApp* instance, FuriString* path) {
     furi_assert(instance);
     furi_assert(path);
-
-    bool result = nfc_device_save(instance->nfc_device, furi_string_get_cstr(instance->file_path));
-
-    if(!result) {
-        dialog_message_show_storage_error(instance->dialogs, "Cannot save\nkey file");
+    FuriString* recovery = furi_string_alloc();
+    FuriString* current_shadow = furi_string_alloc_set(instance->file_path);
+    bool has_current_file = furi_string_end_with(current_shadow, NFC_APP_EXTENSION) ||
+                            furi_string_end_with(current_shadow, NFC_APP_SHADOW_EXTENSION);
+    if(has_current_file) {
+        furi_string_left(current_shadow, furi_string_size(current_shadow) - 4);
+        furi_string_cat(current_shadow, NFC_APP_SHADOW_EXTENSION);
     }
-
+    bool replace =
+        has_current_file &&
+        (storage_common_equivalent_path(
+             instance->storage,
+             furi_string_get_cstr(path),
+             furi_string_get_cstr(instance->file_path)) ||
+         storage_common_equivalent_path(
+             instance->storage, furi_string_get_cstr(path), furi_string_get_cstr(current_shadow)));
+    bool result = echo_file_save(
+        instance->storage, furi_string_get_cstr(path), replace, nfc_write_file, instance, recovery);
+    if(!furi_string_empty(recovery)) {
+        const char* suffix = strrchr(furi_string_get_cstr(recovery), '.');
+        FuriString* message = furi_string_alloc_printf(
+            "%s\nPrior file kept as\n<file>%s",
+            result ? "Saved." : "Save failed.",
+            suffix ? suffix : ".echo-old");
+        dialog_message_show_storage_error(instance->dialogs, furi_string_get_cstr(message));
+        furi_string_free(message);
+    } else if(!result) {
+        dialog_message_show_storage_error(instance->dialogs, "Cannot save\ncard file");
+    }
+    furi_string_free(current_shadow);
+    furi_string_free(recovery);
     return result;
 }
 
@@ -326,22 +356,187 @@ bool nfc_has_shadow_file(NfcApp* instance) {
 static bool nfc_save_internal(NfcApp* instance, const char* extension) {
     furi_assert(instance);
     furi_assert(extension);
-
-    bool result = false;
-
-    nfc_make_app_folders(instance);
-
-    if(furi_string_end_with(instance->file_path, NFC_APP_EXTENSION) ||
-       (furi_string_end_with(instance->file_path, NFC_APP_SHADOW_EXTENSION))) {
-        size_t filename_start = furi_string_search_rchar(instance->file_path, '/');
-        furi_string_left(instance->file_path, filename_start);
+    if(furi_string_empty(instance->file_name)) {
+        dialog_message_show_storage_error(instance->dialogs, "Name and save\nthe card first");
+        return false;
     }
-
+    FuriString* destination = furi_string_alloc_set(instance->file_path);
+    bool existing = furi_string_end_with(destination, NFC_APP_EXTENSION) ||
+                    furi_string_end_with(destination, NFC_APP_SHADOW_EXTENSION);
+    if(existing) path_extract_dirname(furi_string_get_cstr(instance->file_path), destination);
     furi_string_cat_printf(
-        instance->file_path, "/%s%s", furi_string_get_cstr(instance->file_name), extension);
+        destination, "/%s%s", furi_string_get_cstr(instance->file_name), extension);
+    bool result = false;
+    do {
+        if(!storage_simply_mkdir(instance->storage, NFC_APP_FOLDER)) {
+            dialog_message_show_storage_error(instance->dialogs, "Cannot create\napp folder");
+            break;
+        }
+        if(strcmp(extension, NFC_APP_SHADOW_EXTENSION) == 0) {
+            FuriString* base = furi_string_alloc_set(destination);
+            furi_string_left(base, furi_string_size(base) - 4);
+            furi_string_cat(base, NFC_APP_EXTENSION);
+            FileInfo info;
+            bool available = existing &&
+                             storage_common_stat(
+                                 instance->storage, furi_string_get_cstr(base), &info) == FSE_OK &&
+                             !(info.flags & FSF_DIRECTORY);
+            furi_string_free(base);
+            if(!available) {
+                dialog_message_show_storage_error(
+                    instance->dialogs, "Original unavailable\nCannot save changes");
+                break;
+            }
+        }
+        // A new original must not inherit an unrelated orphan shadow.
+        if(strcmp(extension, NFC_APP_EXTENSION) == 0 &&
+           !storage_common_equivalent_path(
+               instance->storage,
+               furi_string_get_cstr(instance->file_path),
+               furi_string_get_cstr(destination))) {
+            FuriString* shadow = furi_string_alloc();
+            nfc_set_shadow_file_path(destination, shadow);
+            FS_Error status =
+                storage_common_stat(instance->storage, furi_string_get_cstr(shadow), NULL);
+            furi_string_free(shadow);
+            if(status != FSE_NOT_EXIST) {
+                dialog_message_show_storage_error(
+                    instance->dialogs, "Cannot use name\nCheck shadow file");
+                break;
+            }
+        }
+        result = nfc_save_file(instance, destination);
+        if(result) {
+            // Keep selection on the original; load/status resolve its shadow.
+            furi_string_left(destination, furi_string_size(destination) - 4);
+            furi_string_cat(destination, NFC_APP_EXTENSION);
+            furi_string_set(instance->file_path, destination);
+        }
+    } while(false);
+    furi_string_free(destination);
+    return result;
+}
 
-    result = nfc_save_file(instance, instance->file_path);
+typedef struct {
+    Storage* storage;
+    const char* source;
+} NfcFileCopy;
 
+static bool nfc_copy_file(const char* destination, void* context) {
+    NfcFileCopy* copy = context;
+    File* source = storage_file_alloc(copy->storage);
+    File* target = storage_file_alloc(copy->storage);
+    bool result = false;
+    do {
+        if(!storage_file_open(source, copy->source, FSAM_READ, FSOM_OPEN_EXISTING)) break;
+        // echo_file_save exclusively reserved this empty staging file.
+        if(!storage_file_open(target, destination, FSAM_WRITE, FSOM_OPEN_EXISTING)) break;
+        uint64_t size = storage_file_size(source);
+        if(size > SIZE_MAX) break;
+        if(!storage_file_copy_to_file(source, target, (size_t)size)) break;
+        result = storage_file_sync(target);
+    } while(false);
+    if(!storage_file_close(target)) result = false;
+    if(!storage_file_close(source)) result = false;
+    storage_file_free(target);
+    storage_file_free(source);
+    return result;
+}
+
+bool nfc_rename(NfcApp* instance, const char* name) {
+    FuriString* original = furi_string_alloc_set(instance->file_path);
+    FuriString* shadow = furi_string_alloc();
+    FuriString* destination = furi_string_alloc();
+    FuriString* new_shadow = furi_string_alloc();
+    FuriString* recovery = furi_string_alloc();
+    bool result = false;
+    const char* error = "Cannot rename\ncard files";
+    do {
+        if(!furi_string_end_with(original, NFC_APP_EXTENSION) &&
+           !furi_string_end_with(original, NFC_APP_SHADOW_EXTENSION))
+            break;
+        furi_string_left(original, furi_string_size(original) - 4);
+        furi_string_cat(original, NFC_APP_EXTENSION);
+        nfc_set_shadow_file_path(original, shadow);
+        FileInfo info;
+        if(storage_common_stat(instance->storage, furi_string_get_cstr(original), &info) !=
+               FSE_OK ||
+           (info.flags & FSF_DIRECTORY))
+            break;
+        FS_Error shadow_status =
+            storage_common_stat(instance->storage, furi_string_get_cstr(shadow), &info);
+        bool has_shadow = shadow_status == FSE_OK;
+        if((has_shadow && (info.flags & FSF_DIRECTORY)) ||
+           (!has_shadow && shadow_status != FSE_NOT_EXIST))
+            break;
+        path_extract_dirname(furi_string_get_cstr(original), destination);
+        furi_string_cat_printf(destination, "/%s%s", name, NFC_APP_EXTENSION);
+        nfc_set_shadow_file_path(destination, new_shadow);
+        if(storage_common_equivalent_path(
+               instance->storage,
+               furi_string_get_cstr(original),
+               furi_string_get_cstr(destination))) {
+            result = true;
+            break;
+        }
+        // Check both names even when this card has no modified file.
+        if(storage_common_stat(instance->storage, furi_string_get_cstr(destination), NULL) !=
+               FSE_NOT_EXIST ||
+           storage_common_stat(instance->storage, furi_string_get_cstr(new_shadow), NULL) !=
+               FSE_NOT_EXIST) {
+            error = "Cannot use name\nCheck card/shadow";
+            break;
+        }
+        if(!has_shadow) {
+            result = storage_common_rename_safe(
+                         instance->storage,
+                         furi_string_get_cstr(original),
+                         furi_string_get_cstr(destination)) == FSE_OK;
+            break;
+        }
+        // Commit both exact copies before removing either source. Failed second
+        // copy leaves the complete original pair available under its old name.
+        NfcFileCopy copy = {
+            .storage = instance->storage, .source = furi_string_get_cstr(original)};
+        if(!echo_file_save(
+               instance->storage,
+               furi_string_get_cstr(destination),
+               false,
+               nfc_copy_file,
+               &copy,
+               recovery))
+            break;
+        copy.source = furi_string_get_cstr(shadow);
+        if(!echo_file_save(
+               instance->storage,
+               furi_string_get_cstr(new_shadow),
+               false,
+               nfc_copy_file,
+               &copy,
+               recovery)) {
+            if(storage_common_remove(instance->storage, furi_string_get_cstr(destination)) !=
+               FSE_OK) {
+                error = "Rename failed\nOriginals kept\nNew copy retained";
+            }
+            break;
+        }
+        result = true;
+        if(storage_common_remove(instance->storage, furi_string_get_cstr(shadow)) != FSE_OK ||
+           storage_common_remove(instance->storage, furi_string_get_cstr(original)) != FSE_OK) {
+            dialog_message_show_storage_error(instance->dialogs, "Renamed.\nOld files retained");
+        }
+    } while(false);
+    if(result) {
+        furi_string_set(instance->file_path, destination);
+        furi_string_set(instance->file_name, name);
+    } else {
+        dialog_message_show_storage_error(instance->dialogs, error);
+    }
+    furi_string_free(original);
+    furi_string_free(shadow);
+    furi_string_free(destination);
+    furi_string_free(new_shadow);
+    furi_string_free(recovery);
     return result;
 }
 
@@ -353,8 +548,18 @@ bool nfc_save_shadow_file(NfcApp* instance) {
 
 bool nfc_save(NfcApp* instance) {
     furi_assert(instance);
-
-    return nfc_save_internal(instance, NFC_APP_EXTENSION);
+    bool update_existing = false;
+    if(furi_string_end_with(instance->file_path, NFC_APP_EXTENSION) ||
+       furi_string_end_with(instance->file_path, NFC_APP_SHADOW_EXTENSION)) {
+        FuriString* current_name = furi_string_alloc();
+        path_extract_filename(instance->file_path, current_name, true);
+        update_existing = furi_string_equal(current_name, instance->file_name);
+        furi_string_free(current_name);
+    }
+    // Saving more data for a loaded card keeps its original restorable. A new
+    // name creates a separate original without deleting the previously loaded pair.
+    return nfc_save_internal(
+        instance, update_existing ? NFC_APP_SHADOW_EXTENSION : NFC_APP_EXTENSION);
 }
 
 bool nfc_load_file(NfcApp* instance, FuriString* path, bool show_dialog) {

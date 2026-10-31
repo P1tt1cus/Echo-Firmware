@@ -231,3 +231,13 @@ InfraredErrorCode infrared_remote_rename(InfraredRemote* remote, const char* new
  * @returns InfraredErrorCodeNone if the file was successfully removed, otherwise error code.
  */
 InfraredErrorCode infrared_remote_remove(InfraredRemote* remote);
+
+/** Create a remote and its first signal in one checked, non-overwriting save. */
+InfraredErrorCode infrared_remote_create_with_signal(
+    InfraredRemote* remote,
+    const char* path,
+    const InfraredSignal* signal,
+    const char* name);
+
+/** Consume a retained original path after a failed rollback or cleanup. */
+void infrared_remote_take_recovery_path(InfraredRemote* remote, FuriString* path);

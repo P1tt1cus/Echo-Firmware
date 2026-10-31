@@ -38,7 +38,7 @@ SubGhzTxRx* subghz_txrx_alloc(void) {
     subghz_txrx_speaker_set_state(instance, SubGhzSpeakerStateDisable);
     subghz_txrx_set_debug_pin_state(instance, false);
 
-    instance->worker = subghz_worker_alloc();
+    instance->worker = NULL;
     instance->fff_data = flipper_format_string_alloc();
 
     instance->environment = subghz_environment_alloc();
@@ -52,12 +52,6 @@ SubGhzTxRx* subghz_txrx_alloc(void) {
     subghz_environment_set_protocol_registry(
         instance->environment, (void*)&subghz_protocol_registry);
     instance->receiver = subghz_receiver_alloc_init(instance->environment);
-
-    subghz_worker_set_overrun_callback(
-        instance->worker, (SubGhzWorkerOverrunCallback)subghz_receiver_reset);
-    subghz_worker_set_pair_callback(
-        instance->worker, (SubGhzWorkerPairCallback)subghz_receiver_decode);
-    subghz_worker_set_context(instance->worker, instance->receiver);
 
 #ifndef SUBGHZ_ADD_MANUALLY
     //set default device External
@@ -88,7 +82,7 @@ void subghz_txrx_free(SubGhzTxRx* instance) {
     subghz_devices_deinit();
 #endif
 
-    subghz_worker_free(instance->worker);
+    if(instance->worker) subghz_worker_free(instance->worker);
     subghz_receiver_free(instance->receiver);
     subghz_environment_free(instance->environment);
     flipper_format_free(instance->fff_data);
@@ -260,9 +254,19 @@ static uint32_t subghz_txrx_rx(SubGhzTxRx* instance, uint32_t frequency) {
     subghz_devices_flush_rx(instance->radio_device);
     subghz_txrx_speaker_on(instance);
 
+    // The live RX worker owns a 4096-pulse (16 KB) buffer. Keep it out of
+    // file browsing, TX and offline decode; those paths need their own buffers.
+    if(!instance->worker) {
+        instance->worker = subghz_worker_alloc();
+        subghz_worker_set_overrun_callback(
+            instance->worker, (SubGhzWorkerOverrunCallback)subghz_receiver_reset);
+        subghz_worker_set_pair_callback(
+            instance->worker, (SubGhzWorkerPairCallback)subghz_receiver_decode);
+        subghz_worker_set_context(instance->worker, instance->receiver);
+    }
+    subghz_worker_start(instance->worker);
     subghz_devices_start_async_rx(
         instance->radio_device, subghz_worker_rx_callback, instance->worker);
-    subghz_worker_start(instance->worker);
     instance->txrx_state = SubGhzTxRxStateRx;
     return value;
 }
@@ -280,9 +284,10 @@ static void subghz_txrx_rx_end(SubGhzTxRx* instance) {
     furi_assert(instance);
     furi_assert(instance->txrx_state == SubGhzTxRxStateRx);
 
-    if(subghz_worker_is_running(instance->worker)) {
-        subghz_worker_stop(instance->worker);
-        subghz_devices_stop_async_rx(instance->radio_device);
+    // Disable the ISR producer before joining/freeing its queue and worker.
+    subghz_devices_stop_async_rx(instance->radio_device);
+    if(instance->worker) {
+        if(subghz_worker_is_running(instance->worker)) subghz_worker_stop(instance->worker);
     }
     subghz_devices_idle(instance->radio_device);
     subghz_txrx_speaker_off(instance);
@@ -337,23 +342,19 @@ SubGhzTxRxStartTxState subghz_txrx_tx_start(SubGhzTxRx* instance, FlipperFormat*
         if(instance->transmitter) {
             if(subghz_transmitter_deserialize(instance->transmitter, flipper_format) ==
                SubGhzProtocolStatusOk) {
-                if(strcmp(furi_string_get_cstr(preset->name), "") != 0) {
-                    subghz_txrx_begin(
-                        instance,
+                uint8_t* preset_data =
+                    furi_string_empty(preset->name) ?
+                        NULL :
                         subghz_setting_get_preset_data_by_name(
-                            instance->setting, furi_string_get_cstr(preset->name)));
-                    if(preset->frequency) {
-                        if(!subghz_txrx_tx(instance, preset->frequency)) {
-                            FURI_LOG_E(TAG, "Only Rx");
-                            ret = SubGhzTxRxStartTxStateErrorOnlyRx;
-                        }
-                    } else {
-                        ret = SubGhzTxRxStartTxStateErrorParserOthers;
+                            instance->setting, furi_string_get_cstr(preset->name));
+                if(preset_data && preset->frequency) {
+                    subghz_txrx_begin(instance, preset_data);
+                    if(!subghz_txrx_tx(instance, preset->frequency)) {
+                        FURI_LOG_E(TAG, "Radio rejected TX");
+                        ret = SubGhzTxRxStartTxStateErrorOnlyRx;
                     }
-
                 } else {
-                    FURI_LOG_E(
-                        TAG, "Unknown name preset \" %s \"", furi_string_get_cstr(preset->name));
+                    FURI_LOG_E(TAG, "Missing preset data or frequency");
                     ret = SubGhzTxRxStartTxStateErrorParserOthers;
                 }
 
@@ -363,17 +364,21 @@ SubGhzTxRxStartTxState subghz_txrx_tx_start(SubGhzTxRx* instance, FlipperFormat*
                            instance->radio_device,
                            subghz_transmitter_yield,
                            instance->transmitter)) {
-                        ret = SubGhzTxRxStartTxStateErrorParserOthers;
+                        ret = SubGhzTxRxStartTxStateErrorRadio;
                     }
                 }
             } else {
                 ret = SubGhzTxRxStartTxStateErrorParserOthers;
             }
         } else {
-            ret = SubGhzTxRxStartTxStateErrorParserOthers;
+            ret = SubGhzTxRxStartTxStateErrorEncoderUnavailable;
         }
         if(ret != SubGhzTxRxStartTxStateOk) {
-            if(instance->transmitter) subghz_transmitter_free(instance->transmitter);
+            if(instance->transmitter) {
+                subghz_transmitter_stop(instance->transmitter);
+                subghz_transmitter_free(instance->transmitter);
+                instance->transmitter = NULL;
+            }
             if(instance->txrx_state != SubGhzTxRxStateIDLE) {
                 subghz_txrx_idle(instance);
             }
@@ -403,6 +408,11 @@ void subghz_txrx_set_need_save_callback(
     instance->need_save_context = context;
 }
 
+bool subghz_txrx_is_tx_complete(SubGhzTxRx* instance) {
+    return instance->txrx_state == SubGhzTxRxStateTx &&
+           subghz_devices_is_async_complete_tx(instance->radio_device);
+}
+
 static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
     furi_assert(instance);
     furi_assert(instance->txrx_state == SubGhzTxRxStateTx);
@@ -410,15 +420,20 @@ static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
     subghz_devices_stop_async_tx(instance->radio_device);
     subghz_transmitter_stop(instance->transmitter);
     subghz_transmitter_free(instance->transmitter);
+    instance->transmitter = NULL;
+
+    // Release the radio and speaker before a save callback can wait on storage
+    // or show a failure dialog.
+    subghz_txrx_idle(instance);
+    subghz_txrx_speaker_off(instance);
 
     //if protocol dynamic then we save the last upload
-    if(instance->decoder_result->protocol->type == SubGhzProtocolTypeDynamic) {
+    if(instance->decoder_result &&
+       instance->decoder_result->protocol->type == SubGhzProtocolTypeDynamic) {
         if(instance->need_save_callback) {
             instance->need_save_callback(instance->need_save_context);
         }
     }
-    subghz_txrx_idle(instance);
-    subghz_txrx_speaker_off(instance);
 }
 
 FlipperFormat* subghz_txrx_get_fff_data(SubGhzTxRx* instance) {
@@ -446,6 +461,13 @@ void subghz_txrx_stop(SubGhzTxRx* instance) {
 
     default:
         break;
+    }
+    // A full stop releases RX memory. Frequency hopping uses rx_end/rx directly
+    // and retains its worker, avoiding allocation churn on every channel.
+    if(instance->worker) {
+        furi_assert(!subghz_worker_is_running(instance->worker));
+        subghz_worker_free(instance->worker);
+        instance->worker = NULL;
     }
 }
 

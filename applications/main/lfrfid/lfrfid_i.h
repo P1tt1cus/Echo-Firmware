@@ -134,6 +134,8 @@ typedef enum {
 
 bool lfrfid_save_key(LfRfid* app);
 
+bool lfrfid_rename_key(LfRfid* app, const char* name);
+
 bool lfrfid_load_key_from_file_select(LfRfid* app);
 
 bool lfrfid_load_raw_key_from_file_select(LfRfid* app);

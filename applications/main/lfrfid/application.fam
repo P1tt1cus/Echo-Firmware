@@ -11,6 +11,7 @@ App(
     fap_libs=["assets"],
     fap_icon="icon.png",
     fap_category="RFID",
+    fap_version=(1, 2),
 )
 
 App(

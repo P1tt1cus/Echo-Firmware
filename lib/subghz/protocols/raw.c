@@ -276,7 +276,7 @@ void subghz_protocol_decoder_raw_get_string(void* context, FuriString* output) {
 
 void* subghz_protocol_encoder_raw_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
-    SubGhzProtocolEncoderRAW* instance = malloc(sizeof(SubGhzProtocolEncoderRAW));
+    SubGhzProtocolEncoderRAW* instance = calloc(1, sizeof(SubGhzProtocolEncoderRAW));
 
     instance->base.protocol = &subghz_protocol_raw;
     instance->file_name = furi_string_alloc();
@@ -289,9 +289,10 @@ void subghz_protocol_encoder_raw_stop(void* context) {
     furi_check(context);
     SubGhzProtocolEncoderRAW* instance = context;
     instance->is_running = false;
-    if(instance->file_worker_encoder &&
-       subghz_file_encoder_worker_is_running(instance->file_worker_encoder)) {
-        subghz_file_encoder_worker_stop(instance->file_worker_encoder);
+    if(instance->file_worker_encoder) {
+        if(subghz_file_encoder_worker_is_running(instance->file_worker_encoder)) {
+            subghz_file_encoder_worker_stop(instance->file_worker_encoder);
+        }
         subghz_file_encoder_worker_free(instance->file_worker_encoder);
         instance->file_worker_encoder = NULL;
     }
@@ -325,8 +326,6 @@ static bool subghz_protocol_encoder_raw_worker_init(SubGhzProtocolEncoderRAW* in
            instance->file_worker_encoder,
            furi_string_get_cstr(instance->file_name),
            furi_string_get_cstr(instance->radio_device_name))) {
-        //the worker needs a file in order to open and read part of the file
-        furi_delay_ms(100);
         instance->is_running = true;
     } else {
         subghz_protocol_encoder_raw_stop(instance);

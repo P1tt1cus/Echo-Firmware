@@ -4,11 +4,12 @@ void lfrfid_scene_write_success_on_enter(void* context) {
     LfRfid* app = context;
     Popup* popup = app->popup;
 
-    popup_set_header(popup, "Success!", 75, 10, AlignLeft, AlignTop);
-    popup_set_icon(popup, 0, 9, &I_DolphinSuccess_91x55);
+    popup_set_header(popup, "Data verified", 64, 13, AlignCenter, AlignTop);
+    popup_set_text(
+        popup, "Read-back matches.\nTest at your reader.", 64, 32, AlignCenter, AlignTop);
     popup_set_context(popup, app);
     popup_set_callback(popup, lfrfid_popup_timeout_callback);
-    popup_set_timeout(popup, 1500);
+    popup_set_timeout(popup, 2500);
     popup_enable_timeout(popup);
 
     view_dispatcher_switch_to_view(app->view_dispatcher, LfRfidViewPopup);

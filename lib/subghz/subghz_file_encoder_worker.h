@@ -27,13 +27,14 @@ void subghz_file_encoder_worker_callback_end(
 SubGhzFileEncoderWorker* subghz_file_encoder_worker_alloc(void);
 
 /** 
- * Free SubGhzFileEncoderWorker.
+ * Free a stopped SubGhzFileEncoderWorker (also valid after start fails).
  * @param instance Pointer to a SubGhzFileEncoderWorker instance
  */
 void subghz_file_encoder_worker_free(SubGhzFileEncoderWorker* instance);
 
 /** 
- * Get a description of the progress.
+ * Get input-file read progress, or "File error" after a read/format failure.
+ * This is not transmission progress; buffered samples can still be pending.
  * @param instance Pointer to a SubGhzFileEncoderWorker instance
  * @param output
  */
@@ -53,7 +54,8 @@ LevelDuration subghz_file_encoder_worker_get_level_duration(void* context);
  * @param instance Pointer to a SubGhzFileEncoderWorker instance
  * @param file_path File path
  * @param radio_device_name Radio device name
- * @return bool - true if ok
+ * @return bool - true when the header and first RAW record are valid and buffered.
+ * Later read failures terminate the stream; the caller must still stop/free it.
  */
 bool subghz_file_encoder_worker_start(
     SubGhzFileEncoderWorker* instance,

@@ -38,6 +38,7 @@
 #include "views/infrared_progress_view.h"
 #include "views/infrared_debug_view.h"
 #include "views/infrared_move_view.h"
+#include "views/infrared_remote_view.h"
 
 #define INFRARED_FILE_NAME_SIZE  100
 #define INFRARED_TEXT_STORE_NUM  2
@@ -143,6 +144,9 @@ struct InfraredApp {
 
     void* rpc_ctx; /**< Pointer to the RPC context object. */
     EchoDashboard* dashboard;
+    InfraredRemoteView* remote_view;
+    int32_t remote_loaded_index;
+    bool remote_signal_valid;
 };
 
 /**
@@ -160,6 +164,7 @@ typedef enum {
     InfraredViewMove,
     InfraredViewLoading,
     InfraredViewDashboard,
+    InfraredViewRemote,
 } InfraredView;
 
 /**
@@ -211,6 +216,8 @@ InfraredErrorCode
  * @param[in,out] infrared pointer to the application instance.
  */
 void infrared_tx_start(InfraredApp* infrared);
+
+void infrared_show_remote_load_error(const InfraredApp* infrared, InfraredErrorCode error);
 
 /**
  * @brief Load a signal under the given index and begin transmission.
@@ -359,3 +366,5 @@ void infrared_text_input_callback(void* context);
  * @param[in,out] context pointer to the user-specified context object.
  */
 void infrared_popup_closed_callback(void* context);
+
+void infrared_show_save_recovery(const InfraredApp* infrared);

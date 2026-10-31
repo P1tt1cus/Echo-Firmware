@@ -45,6 +45,16 @@ void subghz_read_raw_update_sample_write(SubGhzReadRAW* instance, size_t sample)
 
 void subghz_read_raw_stop_send(SubGhzReadRAW* instance);
 
+bool subghz_read_raw_is_tx_requested(SubGhzReadRAW* instance);
+
+/** Explicit one-pass intent for the existing favorite-launch workflow. */
+void subghz_read_raw_start_send(SubGhzReadRAW* instance);
+
+void subghz_read_raw_set_tx_active(SubGhzReadRAW* instance, bool active);
+
+/** Stop UI repeat intent without posting another Send event. */
+void subghz_read_raw_cancel_send(SubGhzReadRAW* instance);
+
 void subghz_read_raw_update_sin(SubGhzReadRAW* instance);
 
 void subghz_read_raw_add_data_rssi(SubGhzReadRAW* instance, float rssi, bool trace);

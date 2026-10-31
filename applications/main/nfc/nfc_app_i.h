@@ -195,6 +195,7 @@ struct NfcApp {
 
     bool fav_timeout;
     EchoDashboard* dashboard;
+    bool echo_status_visible;
 };
 
 typedef enum {
@@ -243,6 +244,8 @@ bool nfc_save_shadow_file(NfcApp* instance);
 bool nfc_delete_shadow_file(NfcApp* instance);
 
 bool nfc_save(NfcApp* instance);
+
+bool nfc_rename(NfcApp* instance, const char* name);
 
 bool nfc_delete(NfcApp* instance);
 

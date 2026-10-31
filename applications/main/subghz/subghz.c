@@ -99,6 +99,8 @@ static void subghz_load_custom_presets(SubGhzSetting* setting) {
 
 SubGhz* subghz_alloc(bool alloc_for_tx_only) {
     SubGhz* subghz = malloc(sizeof(SubGhz));
+    subghz->decode_raw_file_worker_encoder = NULL;
+    subghz->autosave_failed = false;
     subghz->replay_bench = NULL;
 
     subghz->file_path = furi_string_alloc();
@@ -304,6 +306,14 @@ void subghz_free(SubGhz* subghz, bool alloc_for_tx_only) {
         rpc_system_app_send_exited(subghz->rpc_ctx);
         subghz_blink_stop(subghz);
         subghz->rpc_ctx = NULL;
+    }
+
+    if(subghz->decode_raw_file_worker_encoder) {
+        if(subghz_file_encoder_worker_is_running(subghz->decode_raw_file_worker_encoder)) {
+            subghz_file_encoder_worker_stop(subghz->decode_raw_file_worker_encoder);
+        }
+        subghz_file_encoder_worker_free(subghz->decode_raw_file_worker_encoder);
+        subghz->decode_raw_file_worker_encoder = NULL;
     }
 
     subghz_txrx_speaker_off(subghz->txrx);

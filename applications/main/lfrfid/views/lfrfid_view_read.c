@@ -11,47 +11,32 @@ struct LfRfidReadView {
 typedef struct {
     IconAnimation* icon;
     LfRfidReadViewMode read_mode;
+    LfRfidReadViewStatus status;
 } LfRfidReadViewModel;
 
 static void lfrfid_view_read_draw_callback(Canvas* canvas, void* _model) {
     LfRfidReadViewModel* model = _model;
     canvas_set_color(canvas, ColorBlack);
 
-    canvas_draw_icon(canvas, 0, 8, &I_NFC_manual_60x50);
-
     canvas_set_font(canvas, FontPrimary);
-
-    if(model->read_mode == LfRfidReadAsk) {
-        canvas_draw_str(canvas, 70, 16, "Reading 1/2");
-
-        canvas_draw_str(canvas, 77, 29, "ASK");
-        canvas_draw_icon(canvas, 70, 22, &I_ButtonRight_4x7);
-        canvas_draw_icon_animation(canvas, 102, 21, model->icon);
-
-        canvas_set_font(canvas, FontSecondary);
-        canvas_draw_str(canvas, 77, 43, "PSK");
-    } else if(model->read_mode == LfRfidReadPsk) {
-        canvas_draw_str(canvas, 70, 16, "Reading 2/2");
-
-        canvas_draw_str(canvas, 77, 43, "PSK");
-        canvas_draw_icon(canvas, 70, 36, &I_ButtonRight_4x7);
-        canvas_draw_icon_animation(canvas, 102, 35, model->icon);
-
-        canvas_set_font(canvas, FontSecondary);
-        canvas_draw_str(canvas, 77, 29, "ASK");
-    } else {
-        canvas_draw_str(canvas, 72, 16, "Reading");
-
-        if(model->read_mode == LfRfidReadAskOnly) {
-            canvas_draw_str(canvas, 77, 35, "ASK");
-        } else {
-            canvas_draw_str(canvas, 77, 35, "PSK");
-        }
-        canvas_draw_icon_animation(canvas, 102, 27, model->icon);
-    }
-
+    canvas_draw_str(canvas, 2, 11, "125 kHz RFID");
+    canvas_draw_icon_animation(canvas, 116, 2, model->icon);
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 61, 56, "Don't move card");
+    const char* mode = "PSK only";
+    if(model->read_mode == LfRfidReadAsk) mode = "Auto: ASK (1/2)";
+    if(model->read_mode == LfRfidReadPsk) mode = "Auto: PSK (2/2)";
+    if(model->read_mode == LfRfidReadAskOnly) mode = "ASK only";
+    canvas_draw_str(canvas, 2, 25, mode);
+    const char* status = "Searching...";
+    if(model->status == LfRfidReadSignal) status = "Signal detected";
+    if(model->status == LfRfidReadChecking) status = "Checking data...";
+    canvas_draw_str(canvas, 2, 38, status);
+    canvas_draw_str(
+        canvas,
+        2,
+        50,
+        model->status == LfRfidReadSearching ? "Hold tag at back" : "Keep tag still");
+    canvas_draw_str(canvas, 2, 62, "Back stops");
 }
 
 void lfrfid_view_read_enter(void* context) {
@@ -108,6 +93,12 @@ void lfrfid_view_read_set_read_mode(LfRfidReadView* read_view, LfRfidReadViewMod
             icon_animation_stop(model->icon);
             icon_animation_start(model->icon);
             model->read_mode = mode;
+            model->status = LfRfidReadSearching;
         },
         true);
+}
+
+void lfrfid_view_read_set_status(LfRfidReadView* read_view, LfRfidReadViewStatus status) {
+    with_view_model(
+        read_view->view, LfRfidReadViewModel * model, { model->status = status; }, true);
 }

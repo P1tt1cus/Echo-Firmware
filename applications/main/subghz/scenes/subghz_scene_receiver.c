@@ -172,13 +172,11 @@ static void subghz_scene_add_to_history_callback(
             subghz->state_notifications = SubGhzNotificationStateRxDone;
 
             if(subghz->remove_duplicates) {
-                // Look in history for signal hash
-                uint32_t hash_data = subghz_protocol_decoder_base_get_hash_data_long(decoder_base);
+                // Compare capture data as well as hash/protocol/radio settings.
                 subghz_view_receiver_disable_draw_callback(subghz->subghz_receiver);
                 for(uint16_t i = idx; i > 0; i--) {
                     i--; // Iterating in reverse with off by one
-                    if(subghz_history_get_hash_data(subghz->history, i) == hash_data &&
-                       subghz_history_get_protocol(subghz->history, i) == decoder_base->protocol) {
+                    if(subghz_history_is_same(subghz->history, i, idx)) {
                         // Remove previous instance and update menu index
                         subghz_history_delete_item(subghz->history, i);
                         subghz_view_receiver_delete_item(subghz->subghz_receiver, i);
@@ -226,7 +224,10 @@ static void subghz_scene_add_to_history_callback(
                 free(dir);
                 // Save
                 subghz_save_protocol_to_file(
-                    subghz, subghz_history_get_raw_data(history, idx), furi_string_get_cstr(path));
+                    subghz,
+                    subghz_history_get_raw_data(history, idx),
+                    furi_string_get_cstr(path),
+                    SubGhzSaveAutosave);
                 furi_string_free(path);
             }
 
@@ -244,6 +245,18 @@ static void subghz_scene_add_to_history_callback(
     subghz_receiver_reset(receiver);
     furi_string_free(item_name);
     furi_string_free(item_time);
+}
+
+static bool subghz_scene_receiver_handle_save_error(SubGhz* subghz) {
+    if(!subghz->autosave_failed || subghz_rx_key_state_get(subghz) == SubGhzRxKeyStateTX)
+        return false;
+    subghz_txrx_stop(subghz->txrx);
+    // Stop joins the worker: clear only after its final callback has returned.
+    subghz->autosave_failed = false;
+    dialog_message_show_storage_error(
+        subghz->dialogs, "Auto-save failed\nSignal is in history\nCheck SD card");
+    subghz_txrx_rx_start(subghz->txrx);
+    return true;
 }
 
 void subghz_scene_receiver_on_enter(void* context) {
@@ -484,6 +497,7 @@ bool subghz_scene_receiver_on_event(void* context, SceneManagerEvent event) {
             break;
         }
     } else if(event.type == SceneManagerEventTypeTick) {
+        if(subghz_scene_receiver_handle_save_error(subghz)) return true;
         if(subghz_rx_key_state_get(subghz) != SubGhzRxKeyStateTX) {
             if(subghz_txrx_hopper_get_state(subghz->txrx) != SubGhzHopperStateOFF) {
                 subghz_txrx_hopper_update(subghz->txrx, subghz->last_settings->hopping_threshold);

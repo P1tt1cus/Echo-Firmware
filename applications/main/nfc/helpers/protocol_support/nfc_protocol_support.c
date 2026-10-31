@@ -229,11 +229,109 @@ bool nfc_protocol_support_has_feature(
     return nfc_protocol_support_get(protocol, instance)->features & feature;
 }
 
+// Summarise captured data and the actual protocol feature flags separately.
+// A protocol supporting emulation does not mean this capture is complete.
+static void nfc_protocol_support_render_status(NfcApp* instance, FuriString* text) {
+    const NfcProtocol protocol = nfc_device_get_protocol(instance->nfc_device);
+    furi_string_set(text, "\e#Capture status\n");
+    if(protocol == NfcProtocolMfClassic) {
+        const MfClassicData* data = nfc_device_get_data(instance->nfc_device, protocol);
+        uint8_t sectors = 0, keys = 0;
+        const uint8_t total = mf_classic_get_total_sectors_num(data->type);
+        mf_classic_get_read_sectors_and_keys(data, &sectors, &keys);
+        furi_string_cat_printf(
+            text,
+            "Data: %s\nSectors: %u/%u\nKeys: %u/%u\n",
+            mf_classic_is_card_read(data) ? "complete" : "partial",
+            sectors,
+            total,
+            keys,
+            total * 2);
+        if(keys < total * 2) furi_string_cat(text, "Some keys missing.\n");
+    } else if(protocol == NfcProtocolMfUltralight) {
+        const MfUltralightData* data = nfc_device_get_data(instance->nfc_device, protocol);
+        furi_string_cat_printf(text, "Pages: %u/%u\n", data->pages_read, data->pages_total);
+        if(data->pages_read < data->pages_total) {
+            furi_string_cat(text, "Data: partial\nAuth or retry may help.\n");
+        } else if(!mf_ultralight_is_all_data_read(data)) {
+            furi_string_cat(text, "Pages captured; auth\ndata still incomplete.\n");
+        } else {
+            furi_string_cat(text, "Supported data read.\n");
+        }
+    } else if(
+        protocol == NfcProtocolIso14443_3a || protocol == NfcProtocolIso14443_3b ||
+        protocol == NfcProtocolIso14443_4a || protocol == NfcProtocolIso14443_4b) {
+        furi_string_cat(text, "Card identified.\nNo full memory dump.\n");
+    } else {
+        furi_string_cat(text, "Protocol data captured.\nSee Info for coverage.\n");
+    }
+
+    if(nfc_protocol_support_has_feature(protocol, instance, NfcProtocolFeatureEmulateUid)) {
+        furi_string_cat(text, "\nEmulation: UID only\n");
+    } else if(nfc_protocol_support_has_feature(protocol, instance, NfcProtocolFeatureEmulateFull)) {
+        furi_string_cat(text, "\nEmulation uses captured\ndata; gaps remain gaps.\n");
+    } else {
+        furi_string_cat(text, "\nEmulation unavailable\nfor this protocol.\n");
+    }
+    if(furi_string_empty(instance->file_name)) {
+        furi_string_cat(text, "\nNot saved yet.\n");
+    } else if(nfc_has_shadow_file(instance)) {
+        furi_string_cat(text, "\nModified copy (.shd).\nOriginal file retained.\n");
+    } else {
+        furi_string_cat(text, "\nSaved capture.\nNo shadow file.\n");
+    }
+    furi_string_cat(text, "Reader acceptance\nnot verified here.");
+}
+
+static void nfc_protocol_support_show_status(NfcApp* instance) {
+    FuriString* text = furi_string_alloc();
+    nfc_protocol_support_render_status(instance, text);
+    widget_reset(instance->widget);
+    widget_add_text_scroll_element(instance->widget, 0, 0, 128, 52, furi_string_get_cstr(text));
+    widget_add_button_element(
+        instance->widget,
+        GuiButtonTypeCenter,
+        "Details",
+        nfc_protocol_support_common_widget_callback,
+        instance);
+    instance->echo_status_visible = true;
+    furi_string_free(text);
+}
+
+static bool nfc_protocol_support_status_event(
+    NfcApp* instance,
+    SceneManagerEvent event,
+    NfcProtocolSupportCommonOnEnter restore) {
+    const bool center = event.type == SceneManagerEventTypeCustom &&
+                        event.event == GuiButtonTypeCenter;
+    if(instance->echo_status_visible) {
+        if(center || event.type == SceneManagerEventTypeBack) {
+            widget_reset(instance->widget);
+            restore(instance);
+        }
+        // Do not apply queued button events from the previous details page.
+        return event.type == SceneManagerEventTypeCustom ||
+               event.type == SceneManagerEventTypeBack;
+    } else if(center) {
+        nfc_protocol_support_show_status(instance);
+        return true;
+    }
+    return false;
+}
+
 // Common scene handlers
 // SceneInfo
 static void nfc_protocol_support_scene_info_on_enter(NfcApp* instance) {
+    instance->echo_status_visible = false;
     const NfcProtocol protocol = nfc_device_get_protocol(instance->nfc_device);
     nfc_protocol_support_get(protocol, instance)->scene_info.on_enter(instance);
+
+    widget_add_button_element(
+        instance->widget,
+        GuiButtonTypeCenter,
+        "Status",
+        nfc_protocol_support_common_widget_callback,
+        instance);
 
     if(nfc_protocol_support_has_feature(protocol, instance, NfcProtocolFeatureMoreInfo)) {
         widget_add_button_element(
@@ -248,6 +346,8 @@ static void nfc_protocol_support_scene_info_on_enter(NfcApp* instance) {
 }
 
 static bool nfc_protocol_support_scene_info_on_event(NfcApp* instance, SceneManagerEvent event) {
+    if(nfc_protocol_support_status_event(instance, event, nfc_protocol_support_scene_info_on_enter))
+        return true;
     bool consumed = false;
 
     if(event.type == SceneManagerEventTypeCustom) {
@@ -481,6 +581,7 @@ static void nfc_protocol_support_scene_read_saved_menu_on_exit(NfcApp* instance)
 
 // SceneReadSuccess
 static void nfc_protocol_support_scene_read_success_on_enter(NfcApp* instance) {
+    instance->echo_status_visible = false;
     Widget* widget = instance->widget;
 
     popup_set_header(instance->popup, "Parsing", 85, 27, AlignCenter, AlignTop);
@@ -501,6 +602,12 @@ static void nfc_protocol_support_scene_read_success_on_enter(NfcApp* instance) {
     widget_add_button_element(
         widget, GuiButtonTypeLeft, "Retry", nfc_protocol_support_common_widget_callback, instance);
     widget_add_button_element(
+        widget,
+        GuiButtonTypeCenter,
+        "Status",
+        nfc_protocol_support_common_widget_callback,
+        instance);
+    widget_add_button_element(
         widget, GuiButtonTypeRight, "More", nfc_protocol_support_common_widget_callback, instance);
 
     notification_message_block(instance->notifications, &sequence_set_green_255);
@@ -509,6 +616,9 @@ static void nfc_protocol_support_scene_read_success_on_enter(NfcApp* instance) {
 
 static bool
     nfc_protocol_support_scene_read_success_on_event(NfcApp* instance, SceneManagerEvent event) {
+    if(nfc_protocol_support_status_event(
+           instance, event, nfc_protocol_support_scene_read_success_on_enter))
+        return true;
     bool consumed = false;
 
     if(event.type == SceneManagerEventTypeCustom) {
@@ -716,12 +826,23 @@ static bool
 
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventTextInputDone) {
-            if(!furi_string_empty(instance->file_name)) {
-                nfc_delete(instance);
+            consumed = true;
+            bool saved;
+            bool renaming =
+                scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSavedMenu) &&
+                scene_manager_get_scene_state(instance->scene_manager, NfcSceneSavedMenu) ==
+                    SubmenuIndexCommonRename;
+            if(renaming) {
+                saved = nfc_rename(instance, instance->text_store);
+            } else {
+                FuriString* previous_name = furi_string_alloc_set(instance->file_name);
+                furi_string_set(instance->file_name, instance->text_store);
+                saved = nfc_save(instance);
+                if(!saved) furi_string_set(instance->file_name, previous_name);
+                furi_string_free(previous_name);
             }
-            furi_string_set(instance->file_name, instance->text_store);
 
-            if(nfc_save(instance)) {
+            if(saved) {
                 scene_manager_next_scene(instance->scene_manager, NfcSceneSaveSuccess);
                 dolphin_deed(
                     scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSetType) ?
@@ -729,12 +850,10 @@ static bool
                         DolphinDeedNfcSave);
 
                 const NfcProtocol protocol = nfc_device_get_protocol(instance->nfc_device);
-                consumed = nfc_protocol_support_get(protocol, instance)
-                               ->scene_save_name.on_event(instance, event);
-            } else {
-                consumed = scene_manager_search_and_switch_to_previous_scene(
-                    instance->scene_manager, NfcSceneStart);
+                nfc_protocol_support_get(protocol, instance)
+                    ->scene_save_name.on_event(instance, event);
             }
+            // A failed operation keeps the name input and prior selection for retry.
         }
     }
 

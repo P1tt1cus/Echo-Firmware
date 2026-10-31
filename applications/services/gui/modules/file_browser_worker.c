@@ -60,6 +60,12 @@ struct BrowserWorker {
     FuriString* passed_ext_filter;
 };
 
+// Read without clearing: the main loop still needs to see the stop request.
+// Called only from the worker, between storage operations, never under a GUI lock.
+static bool browser_worker_stopping(void) {
+    return (furi_thread_flags_get() & WorkerEvtStop) != 0;
+}
+
 static bool browser_path_is_file(FuriString* path) {
     bool state = false;
     FileInfo file_info;
@@ -193,7 +199,7 @@ static bool browser_folder_init(
 
     if(storage_dir_open(directory, furi_string_get_cstr(path))) {
         state = true;
-        while(1) {
+        while(!browser_worker_stopping()) {
             if(!storage_dir_read(directory, &file_info, name_temp, FILE_NAME_LEN_MAX)) {
                 break;
             }
@@ -251,7 +257,7 @@ static bool browser_folder_load_chunked(
         }
 
         items_cnt = 0;
-        while(items_cnt < offset) {
+        while(items_cnt < offset && !browser_worker_stopping()) {
             if(!storage_dir_read(directory, &file_info, name_temp, FILE_NAME_LEN_MAX)) {
                 break;
             }
@@ -264,7 +270,7 @@ static bool browser_folder_load_chunked(
                 break;
             }
         }
-        if(items_cnt != offset) {
+        if(items_cnt != offset || browser_worker_stopping()) {
             break;
         }
 
@@ -273,7 +279,7 @@ static bool browser_folder_load_chunked(
         }
 
         items_cnt = 0;
-        while(items_cnt < count) {
+        while(items_cnt < count && !browser_worker_stopping()) {
             if(!storage_dir_read(directory, &file_info, name_temp, FILE_NAME_LEN_MAX)) {
                 break;
             }
@@ -291,7 +297,7 @@ static bool browser_folder_load_chunked(
                 break;
             }
         }
-        if(browser->list_item_cb) {
+        if(browser->list_item_cb && !browser_worker_stopping()) {
             browser->list_item_cb(browser->cb_ctx, NULL, false, true);
         }
     } while(0);
@@ -327,7 +333,8 @@ static bool browser_folder_load_full(BrowserWorker* browser, FuriString* path) {
         if(browser->list_load_cb) {
             browser->list_load_cb(browser->cb_ctx, 0);
         }
-        while(storage_dir_read(directory, &file_info, name_temp, FILE_NAME_LEN_MAX) &&
+        while(!browser_worker_stopping() &&
+              storage_dir_read(directory, &file_info, name_temp, FILE_NAME_LEN_MAX) &&
               storage_file_get_error(directory) == FSE_OK) {
             furi_string_set(name_str, name_temp);
             if(browser_filter_by_name(browser, name_str, file_info_is_dir(&file_info))) {
@@ -339,7 +346,7 @@ static bool browser_folder_load_full(BrowserWorker* browser, FuriString* path) {
                 items_cnt++;
             }
         }
-        if(browser->list_item_cb) {
+        if(browser->list_item_cb && !browser_worker_stopping()) {
             browser->list_item_cb(browser->cb_ctx, NULL, false, true);
         }
         ret = true;
@@ -374,6 +381,9 @@ static int32_t browser_worker(void* context) {
             furi_thread_flags_wait(WORKER_FLAGS_ALL, FuriFlagWaitAny, FuriWaitForever);
         furi_check((flags & FuriFlagError) == 0);
 
+        // Stop takes priority over work queued in the same wakeup.
+        if(flags & WorkerEvtStop) break;
+
         if(flags & WorkerEvtConfigChange) {
             if(browser->keep_selection && furi_string_start_with(path, browser->path_next)) {
                 // New path is parent of current, keep prev selected in new view
@@ -390,6 +400,7 @@ static int32_t browser_worker(void* context) {
 
                 int32_t file_idx = 0;
                 browser_folder_init(browser, path, filename, &items_cnt, &file_idx);
+                if(browser_worker_stopping()) break;
                 furi_string_set(browser->path_current, path);
                 FURI_LOG_D(
                     TAG,
@@ -418,6 +429,7 @@ static int32_t browser_worker(void* context) {
 
             int32_t file_idx = 0;
             browser_folder_init(browser, path, filename, &items_cnt, &file_idx);
+            if(browser_worker_stopping()) break;
             furi_string_set(browser->path_current, path);
             FURI_LOG_D(
                 TAG,
@@ -439,6 +451,7 @@ static int32_t browser_worker(void* context) {
 
             int32_t file_idx = 0;
             browser_folder_init(browser, path, filename, &items_cnt, &file_idx);
+            if(browser_worker_stopping()) break;
             furi_string_set(browser->path_current, path);
             FURI_LOG_D(
                 TAG,
@@ -459,6 +472,7 @@ static int32_t browser_worker(void* context) {
 
             int32_t file_idx = 0;
             browser_folder_init(browser, path, filename, &items_cnt, &file_idx);
+            if(browser_worker_stopping()) break;
             FURI_LOG_D(
                 TAG,
                 "Refresh folder: %s items: %lu idx: %ld",
