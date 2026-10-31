@@ -171,3 +171,22 @@ not in source. Never commit captures, credential data or pairing secrets.
 - This first cancellation patch is not installed. Remaining work: connection and
   pairing UI, long-command cancellation, status callback/pairing lifecycle review,
   physical paired-host test. No keystrokes were sent to a host.
+
+- Follow-up: long STRING/ALTSTRING commands check pending stop/disconnect/exit
+  between characters, leaving those flags for the worker; no automatic resume.
+  HID state now distinguishes offline arming, linked readiness to start, lost link
+  and reconnect requiring Run again. Elapsed seconds wrap correctly at 60.
+- BLE uses the system pairing screen, including explicit numeric-code confirmation;
+  prior PIN-screen suppression is restored on exit. Initial link status is sampled
+  after registration and delivered when the worker attaches its callback.
+- File-open failure cleanup only touches a successfully initialized HID interface.
+  Zero-initialized worker storage makes this guard deterministic.
+- `echo_hid_control_test.py` additionally passes long-command interruption and
+  unreadable-file teardown. `echo_hid_view_test.py` passes all USB/BLE worker states,
+  arming/lost-link/reconnect labels, clock rendering and 100 repeated draw cycles.
+  `echo_hid_profile_test.py` passes actual profile init/teardown with adapters,
+  status attachment, system PIN UI selection, key-store/default-profile restoration
+  and saved PIN-screen preference. API87.1 `fap_bad_kb` build passes.
+- A linked status means the stack's connection/pairing event was received. It does
+  not prove that a host accepted HID reports. Physical pairing rejection, reconnect,
+  HID receipt and held-key release remain separate device tests.

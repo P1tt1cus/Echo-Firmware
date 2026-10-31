@@ -31,6 +31,7 @@ typedef struct {
     size_t error_line;
     char error[64];
     uint32_t elapsed;
+    bool interrupted;
 } BadUsbState;
 
 typedef struct BadUsbScript BadUsbScript;

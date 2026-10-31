@@ -119,6 +119,7 @@ typedef struct {
     HidStateCallback state_callback;
     void* callback_context;
     bool is_connected;
+    bool previous_pin_suppression;
 } BleHidInstance;
 
 static void hid_ble_connection_status_callback(BtStatus status, void* context) {
@@ -164,7 +165,9 @@ void hid_ble_adjust_config(BadUsbHidConfig* hid_cfg) {
 void* hid_ble_init(BadUsbHidConfig* hid_cfg) {
     BleHidInstance* ble_hid = calloc(1, sizeof(BleHidInstance));
     ble_hid->bt = furi_record_open(RECORD_BT);
-    ble_hid->bt->suppress_pin_screen = true;
+    ble_hid->previous_pin_suppression = ble_hid->bt->suppress_pin_screen;
+    // Use the system's PIN display and explicit numeric-comparison confirmation.
+    ble_hid->bt->suppress_pin_screen = false;
     bt_disconnect(ble_hid->bt);
 
     // Wait 2nd core to update nvm storage
@@ -179,6 +182,7 @@ void* hid_ble_init(BadUsbHidConfig* hid_cfg) {
     furi_hal_bt_start_advertising();
 
     bt_set_status_changed_callback(ble_hid->bt, hid_ble_connection_status_callback, ble_hid);
+    hid_ble_connection_status_callback(ble_hid->bt->status, ble_hid);
 
     return ble_hid;
 }
@@ -195,7 +199,7 @@ void hid_ble_deinit(void* inst) {
     bt_keys_storage_set_default_path(ble_hid->bt);
 
     furi_check(bt_profile_restore_default(ble_hid->bt));
-    ble_hid->bt->suppress_pin_screen = false;
+    ble_hid->bt->suppress_pin_screen = ble_hid->previous_pin_suppression;
     furi_record_close(RECORD_BT);
     free(ble_hid);
 }
@@ -203,8 +207,10 @@ void hid_ble_deinit(void* inst) {
 void hid_ble_set_state_callback(void* inst, HidStateCallback cb, void* context) {
     BleHidInstance* ble_hid = inst;
     furi_assert(ble_hid);
-    ble_hid->state_callback = cb;
+    ble_hid->state_callback = NULL;
     ble_hid->callback_context = context;
+    ble_hid->state_callback = cb;
+    if(cb) cb(ble_hid->is_connected, context);
 }
 
 bool hid_ble_is_connected(void* inst) {

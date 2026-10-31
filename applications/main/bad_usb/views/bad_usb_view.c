@@ -27,8 +27,8 @@ static void bad_usb_draw_callback(Canvas* canvas, void* _model) {
     BadUsbModel* model = _model;
 
     FuriString* disp_str = furi_string_alloc_set(model->file_name);
-    elements_string_fit_width(canvas, disp_str, 128 - 2);
     canvas_set_font(canvas, FontSecondary);
+    elements_string_fit_width(canvas, disp_str, 128 - 2);
     canvas_draw_str(canvas, 2, 8, furi_string_get_cstr(disp_str));
 
     if(strlen(model->layout) == 0) {
@@ -36,12 +36,13 @@ static void bad_usb_draw_callback(Canvas* canvas, void* _model) {
     } else {
         furi_string_printf(disp_str, "(%s)", model->layout);
     }
-    if(model->interface == BadUsbHidInterfaceBle && model->bt->pin_code) {
-        furi_string_cat_printf(disp_str, "  PIN: %ld", model->bt->pin_code);
-    } else {
-        uint32_t e = model->state.elapsed;
-        furi_string_cat_printf(disp_str, "  %02lu:%02lu.%ld", e / 60 / 1000, e / 1000, e % 1000);
-    }
+    uint32_t elapsed = model->state.elapsed;
+    furi_string_cat_printf(
+        disp_str,
+        " %s %02lu:%02lu",
+        model->interface == BadUsbHidInterfaceBle ? "BLE" : "USB",
+        elapsed / 60000,
+        (elapsed / 1000) % 60);
     elements_string_fit_width(canvas, disp_str, 128 - 2);
     canvas_draw_str(
         canvas, 2, 8 + canvas_current_font_height(canvas), furi_string_get_cstr(disp_str));
@@ -58,7 +59,7 @@ static void bad_usb_draw_callback(Canvas* canvas, void* _model) {
 
     if((state == BadUsbStateIdle) || (state == BadUsbStateDone) ||
        (state == BadUsbStateNotConnected)) {
-        elements_button_center(canvas, "Run");
+        elements_button_center(canvas, state == BadUsbStateNotConnected ? "Arm" : "Run");
         elements_button_left(canvas, "Config");
         elements_button_right(canvas, model->interface == BadUsbHidInterfaceBle ? "USB" : "BLE");
     } else if((state == BadUsbStateRunning) || (state == BadUsbStateDelay)) {
@@ -77,13 +78,23 @@ static void bad_usb_draw_callback(Canvas* canvas, void* _model) {
 
     if(state == BadUsbStateNotConnected) {
         canvas_draw_icon(canvas, 4, 26, &I_Clock_18x18);
-        canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str_aligned(canvas, 127, 31, AlignRight, AlignBottom, "Connect");
-        canvas_draw_str_aligned(canvas, 127, 43, AlignRight, AlignBottom, "to device");
+        canvas_set_font(canvas, FontSecondary);
+        const char* first = "Connect";
+        const char* second = "USB cable";
+        if(model->interface == BadUsbHidInterfaceBle) {
+            first = model->bt->status == BtStatusAdvertising ? "Pair host" : "BLE idle";
+            second = "On host";
+        }
+        if(model->state.interrupted) {
+            first = "Link lost";
+            second = "Stopped";
+        }
+        canvas_draw_str_aligned(canvas, 127, 31, AlignRight, AlignBottom, first);
+        canvas_draw_str_aligned(canvas, 127, 43, AlignRight, AlignBottom, second);
     } else if(state == BadUsbStateWillRun) {
         canvas_draw_icon(canvas, 4, 26, &I_Clock_18x18);
         canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str_aligned(canvas, 127, 31, AlignRight, AlignBottom, "Will run");
+        canvas_draw_str_aligned(canvas, 127, 31, AlignRight, AlignBottom, "Armed");
         canvas_draw_str_aligned(canvas, 127, 43, AlignRight, AlignBottom, "on connect");
     } else if(state == BadUsbStateFileError) {
         canvas_draw_icon(canvas, 4, 26, &I_Error_18x18);
@@ -103,12 +114,15 @@ static void bad_usb_draw_callback(Canvas* canvas, void* _model) {
         canvas_draw_str_aligned(canvas, 127, 33, AlignRight, AlignBottom, "ERROR:");
     } else if(state == BadUsbStateIdle) {
         canvas_draw_icon(canvas, 4, 26, &I_Smile_18x18);
-        furi_string_printf(disp_str, "0/%zu", model->state.line_nb);
+        canvas_set_font(canvas, FontSecondary);
+        canvas_draw_str_aligned(canvas, 127, 31, AlignRight, AlignBottom, "Linked");
         canvas_draw_str_aligned(
-            canvas, 124, 47, AlignRight, AlignBottom, furi_string_get_cstr(disp_str));
-        canvas_set_font(canvas, FontBigNumbers);
-        canvas_draw_str_aligned(canvas, 112, 37, AlignRight, AlignBottom, "0");
-        canvas_draw_icon(canvas, 115, 23, &I_Percent_10x14);
+            canvas,
+            127,
+            43,
+            AlignRight,
+            AlignBottom,
+            model->state.interrupted ? "Run again" : "Press Run");
     } else if(state == BadUsbStateRunning) {
         if(model->anim_frame == 0) {
             canvas_draw_icon(canvas, 4, 23, &I_EviSmile1_18x21);

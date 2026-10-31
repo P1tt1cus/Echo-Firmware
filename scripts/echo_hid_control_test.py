@@ -19,7 +19,9 @@ STUB = next(
 
 def function(source, name):
     m = re.search(
-        r"^static (?:uint32_t|int32_t) " + name + r"\([^;]*?\) \{", source, re.M
+        r"^(?:static )?(?:uint32_t|int32_t|bool) " + name + r"\([^;]*?\) \{",
+        source,
+        re.M,
     )
     assert m, name
     depth, end = 1, m.end()
@@ -61,11 +63,16 @@ ADAPTER = r"""
 #define FSAM_READ 0
 #define FSOM_OPEN_EXISTING 0
 #define DolphinDeedBadUsbPlayScript 0
+#define HID_KEYBOARD_NONE 0
+#define HID_KEYBOARD_RETURN 40
+#define BADUSB_ASCII_TO_KEY(script,x) ((script)->layout[(uint8_t)(x)])
 typedef int File;
 typedef int FuriThread;
 typedef int BadUsbHidInterface;
 typedef int BadUsbHidConfig;
 typedef struct {
+ bool (*kb_press)(void*,uint16_t);
+ bool (*kb_release)(void*,uint16_t);
  bool (*is_connected)(void*);
  bool (*release_all)(void*);
  void (*set_state_callback)(void*,void*,void*);
@@ -76,24 +83,27 @@ typedef struct BadUsbScript BadUsbScript;
 RUNTIME = r"""
 typedef struct {BadUsbWorkerState state;uint32_t flags;bool connected;} Step;
 static Step* steps;static unsigned nsteps,step,release_count,executed,unregistered,deinitialized;
-static bool connected,initial_connected;static BadUsbScript* current;static int next_command;
+static bool connected,file_open=true;static uint32_t queued_flags,interrupt_flag;static unsigned presses,key_releases,interrupt_after;static BadUsbScript* current;static int next_command;
 static bool is_connected(void* p) {(void)p;return connected;}
 static bool release_all(void* p) {(void)p;release_count++;return true;}
 static void set_callback(void* p,void* cb,void* ctx) {(void)p;assert(!cb&&!ctx);unregistered++;}
 static void deinit(void* p) {(void)p;assert(unregistered&&release_count);deinitialized++;}
-static const BadUsbHidApi hid={is_connected,release_all,set_callback,deinit};
+static bool press(void* p,uint16_t key) {(void)p;(void)key;if(++presses==interrupt_after)queued_flags=interrupt_flag;return true;}
+static bool release(void* p,uint16_t key) {(void)p;(void)key;key_releases++;return true;}
+static bool ducky_altchar(BadUsbScript* s,const char* value) {(void)value;return press(s->hid_inst,1)&&release(s->hid_inst,1);}
+static const BadUsbHidApi hid={press,release,is_connected,release_all,set_callback,deinit};
 static uint32_t furi_get_tick(void) {static uint32_t tick;return ++tick;}
 static void* furi_record_open(const char* name) {(void)name;return NULL;}
 static File* storage_file_alloc(void* p) {(void)p;return calloc(1,sizeof(File));}
-static bool storage_file_open(File* f,const char* path,int a,int b) {(void)f;(void)path;(void)a;(void)b;return true;}
+static bool storage_file_open(File* f,const char* path,int a,int b) {(void)f;(void)path;(void)a;(void)b;return file_open;}
 static bool storage_file_seek(File* f,unsigned off,bool a) {(void)f;(void)off;(void)a;return true;}
 static void storage_file_close(File* f) {(void)f;}
 static void storage_file_free(File* f) {free(f);}
-static bool ducky_script_preload(BadUsbScript* s,File* f) {(void)f;s->hid=&hid;s->st.line_nb=2;return true;}
+static bool ducky_script_preload(BadUsbScript* s,File* f) {(void)f;s->hid=&hid;s->hid_initialized=true;s->st.line_nb=2;return true;}
 static int32_t ducky_script_execute_next(BadUsbScript* s,File* f) {(void)f;s->st.line_cur++;executed++;return next_command;}
 static bool ducky_string_next(BadUsbScript* s) {(void)s;executed++;return false;}
 static void dolphin_deed(int n) {(void)n;}
-static uint32_t furi_thread_flags_get(void) {return 0;}
+static uint32_t furi_thread_flags_get(void) {return queued_flags;}
 static uint32_t furi_thread_flags_clear(uint32_t flags) {(void)flags;return 0;}
 static uint32_t furi_thread_flags_wait(uint32_t mask,uint32_t options,uint32_t timeout) {
  (void)options;(void)timeout;assert(step<nsteps);Step s=steps[step++];
@@ -102,10 +112,13 @@ static uint32_t furi_thread_flags_wait(uint32_t mask,uint32_t options,uint32_t t
 }
 """
 TEST = r"""
-static void run(Step* plan,unsigned count,bool initially,int command,unsigned expect_executed) {
+static bool run(Step* plan,unsigned count,bool initially,int command,unsigned expect_executed) {
  steps=plan;nsteps=count;step=release_count=executed=unregistered=deinitialized=0;connected=initially;next_command=command;
  BadUsbScript s={0};current=&s;s.file_path=alloc_text("synthetic.txt");bad_usb_worker(&s);
- assert(step==nsteps&&executed==expect_executed&&release_count&&unregistered==1&&deinitialized==1);furi_string_free(s.file_path);
+ assert(step==nsteps&&executed==expect_executed);
+ if(file_open)assert(release_count&&unregistered==1&&deinitialized==1);
+ else assert(!release_count&&!unregistered&&!deinitialized);
+ furi_string_free(s.file_path);return s.st.interrupted;
 }
 #define RUN(p,initial,command,executed) run(p,COUNT_OF(p),initial,command,executed)
 int main(void) {
@@ -121,19 +134,19 @@ int main(void) {
   {BadUsbStateRunning,WorkerEvtDisconnect|WorkerEvtStartStop|WorkerEvtPauseResume,false},
   {BadUsbStateNotConnected,WorkerEvtConnect,true},
   {BadUsbStateIdle,WorkerEvtEnd,true}};
- RUN(running,true,0,0);
+ assert(RUN(running,true,0,0));
  Step coalesced[]={
   {BadUsbStateIdle,WorkerEvtStartStop,true},
   {BadUsbStateRunning,WorkerEvtDisconnect|WorkerEvtConnect|WorkerEvtStartStop,true},
   {BadUsbStateIdle,WorkerEvtEnd,true}};
- RUN(coalesced,true,0,0);
+ assert(RUN(coalesced,true,0,0));
  Step armed[]={
   {BadUsbStateNotConnected,WorkerEvtStartStop,false},
   {BadUsbStateWillRun,WorkerEvtConnect,true},
   {BadUsbStateWillRun,WorkerEvtDisconnect|WorkerEvtStartStop,false},
   {BadUsbStateNotConnected,WorkerEvtConnect,true},
   {BadUsbStateIdle,WorkerEvtEnd,true}};
- RUN(armed,false,0,0);
+ assert(RUN(armed,false,0,0));
  Step arm_disconnect[]={
   {BadUsbStateNotConnected,WorkerEvtStartStop,false},
   {BadUsbStateWillRun,WorkerEvtDisconnect,false},
@@ -182,6 +195,20 @@ int main(void) {
   {BadUsbStateIdle,WorkerEvtStartStop,false},
   {BadUsbStateNotConnected,WorkerEvtEnd,false}};
  RUN(stopped_before_start,true,0,0);
+ Step file_error[]={{BadUsbStateFileError,WorkerEvtEnd,false}};
+ file_open=false;RUN(file_error,false,0,0);file_open=true;
+ BadUsbScript text_script={.hid=&hid};
+ for(unsigned i=0;i<128;i++)text_script.layout[i]=i;
+ const uint32_t controls[]={WorkerEvtEnd,WorkerEvtDisconnect,WorkerEvtStartStop};
+ for(unsigned i=0;i<COUNT_OF(controls);i++) {
+  for(unsigned alt=0;alt<2;alt++) {
+   queued_flags=0;presses=key_releases=0;interrupt_after=3;interrupt_flag=controls[i];
+   assert(alt?ducky_altstring(&text_script,"abcdefghi"):ducky_string(&text_script,"ab\ncdefghi"));
+   assert(presses==3&&key_releases==3&&queued_flags==controls[i]);
+  }
+ }
+ queued_flags=0;presses=key_releases=0;interrupt_after=0;
+ assert(ducky_string(&text_script,"abc"));assert(presses==3&&key_releases==3);
  puts("PASS: production HID worker disconnect priority, pending-run cancellation, reconnect to idle, paused/button/string waits, lost-link start guard and release on exit");
 }
 """
@@ -196,7 +223,14 @@ with tempfile.TemporaryDirectory(prefix="echo-hid-") as d:
         + RUNTIME
         + "".join(
             function(source, n)
-            for n in ("bad_usb_control_flags", "bad_usb_flags_get", "bad_usb_worker")
+            for n in (
+                "bad_usb_script_interrupted",
+                "ducky_altstring",
+                "ducky_string",
+                "bad_usb_control_flags",
+                "bad_usb_flags_get",
+                "bad_usb_worker",
+            )
         )
         + TEST
     )
