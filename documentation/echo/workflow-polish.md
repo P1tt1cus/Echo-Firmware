@@ -426,3 +426,20 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Next: install/check NFC synthetic pair workflows, then Sub-GHz save/rename
   accuracy and final shared-core/device regression. Prior `95b0cc7be` CI passed
   (firmware/lint runs `41232108931` and `41232108911`).
+
+- NFC 1.3 source `bd022a3b2` installed, local/device MD5
+  `ca1d9deb93fca34f021bd58915d70676`; previous 1.2 FAP retained locally. Synthetic
+  pair rename `00_EchoPair` → `00_EchoPair_` preserved both exact file hashes:
+  original `be5f138b66053158707da2e44603b97e`, shadow
+  `a3f873174b35effe38efb1edfa236aa5`. Old names were absent; browser retained the
+  new selection. Reopening loaded the shadow UID `05 06 07 08`.
+- Device Edit UID changed it to `15 06 07 08`; shadow readback verified, MD5
+  `7eab9305bd3abc9dd881c4e2788c97f3`, while original hash stayed unchanged.
+  Restore to Original State removed the shadow, removed its Restore menu entry,
+  and reloaded UID `01 02 03 04` in the edit view. Cancel/Back exited to desktop.
+  No temporary/recovery siblings remained; all synthetic pair files were removed.
+  No NFC read, emulation or physical card write occurred. The core buffered-close
+  fix remains pending installation; these were normal SD/UI operations.
+- `bd022a3b2` CI passed: firmware `41232718060`, lint `41232718061`.
+  Next: Sub-GHz checked writes/overwrite/rename failure paths, remaining saved-file
+  audit, combined core install and final navigation/performance/physical checks.
