@@ -5,7 +5,7 @@
 static void nfc_render_mf_ultralight_pages_count(const MfUltralightData* data, FuriString* str) {
     furi_string_cat_printf(str, "\nPages Read: %u/%u", data->pages_read, data->pages_total);
     if(data->pages_read != data->pages_total) {
-        furi_string_cat_printf(str, "\nPassword-protected pages!");
+        furi_string_cat_printf(str, "\nSome pages unread.\nAuth or retry may help.");
     }
 }
 

@@ -195,6 +195,7 @@ struct NfcApp {
 
     bool fav_timeout;
     EchoDashboard* dashboard;
+    bool echo_status_visible;
 };
 
 typedef enum {

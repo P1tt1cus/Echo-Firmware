@@ -1,6 +1,6 @@
 App(
     appid="nfc",
-    fap_version=(1, 1),
+    fap_version=(1, 2),
     name="NFC",
     apptype=FlipperAppType.MENUEXTERNAL,
     targets=["f7"],

@@ -18,8 +18,8 @@ claims. Do not label an unperformed physical test as passed.
 | Stage | Scope | Status |
 | --- | --- | --- |
 | 1 | Stability: memory, browser cancellation, worker/radio cleanup | Browser fixes and sanitizer checks pass; device regression pending final core install; radio cleanup continues in stages 4–6 |
-| 2 | RFID: search/decode feedback, write verification and specific failures | In progress |
-| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Pending |
+| 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/build and device UI pass; physical tag tests pending |
+| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build pass; device status check in progress |
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Pending |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Pending |
@@ -77,3 +77,25 @@ not in source. Never commit captures, credential data or pairing secrets.
   layouts, real scene transitions, no success from sense events, fixed-mode
   behavior, re-entry, worker stop/join calls. `fap_lfrfid`: PASS, API87.1.
 - Physical tag read/write/reader-acceptance tests remain pending fixtures.
+- RFID 1.1 source `e77943ea8` installed, local/device MD5
+  `ab9430967cdcaa03cdabc30dd4694234`. Real screen captured showing Auto ASK,
+  **Signal detected**, placement hint and Back control; Back returns to menu.
+  This verifies UI and cancellation, not successful decoding/writing a tag.
+  Previous FAP and screenshots retained in ignored `build/workflow-polish-install/`.
+
+### Stage 3: NFC
+
+- Centre **Status** on read results and Info opens capture completeness and emulation
+  capability; **Details** or Back returns, preserving Retry/More on the result.
+- MIFARE Classic reports sectors and keys separately; all sectors with a missing
+  key stays partial. Ultralight distinguishes unread pages from all pages captured
+  but incomplete authentication data. Other protocols do not inherit a false full
+  card-copy claim from UID recognition or emulation support.
+- Status identifies unsaved, saved and modified-shadow files. It does not infer
+  reader acceptance. Existing live dictionary sector/key progress is retained.
+- Ultralight no longer labels every incomplete read as password protection;
+  feedback allows for retry/communication failures as well as authentication.
+- `echo_nfc_status_test.py`: PASS, production render/event functions, ASAN/UBSAN,
+  partial/full/UID/auth-incomplete data, capability flags, shadow status and 100
+  Status/Details/Back cycles. `fap_nfc`: PASS, embedded protocol plugins/API87.1.
+- Physical NFC reads/emulation and modified-card behavior remain pending fixtures.
