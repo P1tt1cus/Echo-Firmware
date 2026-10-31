@@ -379,3 +379,16 @@ not in source. Never commit captures, credential data or pairing secrets.
   errors are ignored. Sub-GHz removes the destination before writing and ignores
   the byte count, then infers success from file existence; its rename overwrites
   collisions. Complete these paths before declaring the saved-file stage done.
+
+- RFID 1.2 source `ceff67482` installed; local/device MD5
+  `da1ea36e3588813cc168ccbeb6f442bd`. Prior 1.1 binary retained locally. Synthetic
+  Saved → Rename changed `00_EchoSave.rfid` to `00_EchoSave_.rfid`; both file hashes
+  were `2daaf20f57d5700c99c1f074bfbdd92e`, including the test comment. Browser kept
+  the renamed file selected. Edit changed the first data byte from 00 to 10;
+  readback was `10 EF 00 11 22`, MD5 `689c6543613a73d90f5f21238344b13c`. The normal
+  serializer omits comments on data edits. No staging/recovery siblings remained.
+  Back exited to the desktop, the fixture was removed, and loader is idle. No tag
+  read, emulation or physical write was performed. Close-error handling still
+  awaits the core update; on-device checks exercised normal SD operations only.
+- Commit `ceff67482` CI passed: firmware `41231812616`, lint `41231812557`.
+  Next implementation: NFC originals/shadows and truthful Sub-GHz save results.
