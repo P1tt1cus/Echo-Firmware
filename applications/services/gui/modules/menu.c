@@ -124,7 +124,16 @@ static void menu_draw_echo(Canvas* canvas, MenuModel* model) {
             canvas_set_color(canvas, ColorWhite);
         }
         echo_menu_icon(canvas, 4, y + 1, item->label);
-        echo_menu_fit(canvas, 16, y + 8, 105, item->label);
+        FuriString* label = furi_string_alloc_set(item->label);
+        elements_scrollable_text_line(
+            canvas,
+            16,
+            y + 8,
+            105,
+            label,
+            menu_scroll_counter(model, index == model->position),
+            false);
+        furi_string_free(label);
         canvas_set_color(canvas, ColorBlack);
     }
     echo_menu_scrollbar(canvas, model->position, count, 4);

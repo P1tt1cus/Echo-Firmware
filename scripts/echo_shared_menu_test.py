@@ -186,12 +186,12 @@ for module, test in [("submenu", SUBMENU_TEST), ("variable_item_list", VARIABLE_
 
 # The compact Tools renderer uses the same chrome, with existing app IDs intact.
 menu = (MODULES / "menu.c").read_text()
-start = menu.index("static void menu_draw_echo(")
+start = menu.index("static size_t menu_scroll_counter(")
 end = menu.index("static void menu_draw_callback(", start)
 menu_model = r"""
 typedef struct {const char* label;} MenuItem;
 ARRAY_DEF(MenuItemArray, MenuItem, M_POD_OPLIST);
-typedef struct {MenuItemArray_t items;FuriString* title;size_t position;} MenuModel;
+typedef struct {MenuItemArray_t items;FuriString* title;size_t position;size_t scroll_counter;} MenuModel;
 """
 menu_test = r"""
 int main(void) {
