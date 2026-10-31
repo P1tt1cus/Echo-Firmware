@@ -7,6 +7,7 @@ on:
 
 jobs:
   pr-cleanup:
+    if: github.repository == 'Next-Flip/Momentum-Firmware'
     runs-on: ubuntu-latest
     steps:
       - name: "Configure for Reindex"

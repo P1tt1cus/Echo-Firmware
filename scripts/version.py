@@ -41,7 +41,7 @@ class GitVersion:
             or "unknown"
         )
 
-        version = tag or "mntm-dev"
+        version = "echo-1.0"
 
         if "SOURCE_DATE_EPOCH" in os.environ:
             commit_date = datetime.utcfromtimestamp(
@@ -78,7 +78,8 @@ class GitVersion:
             if not line:
                 continue
             _, destination = line.split("\t")
-            url, _ = destination.split(" ")
+            # Partial clones append a fetch filter, e.g. "(fetch) [blob:none]".
+            url = destination.split()[0]
             origins.add(url)
             break
         if len(origins) == 1:

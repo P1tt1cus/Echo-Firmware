@@ -24,3 +24,13 @@ Preserve all source licenses and attribution.
 - Never commit private captures, keys, Wi-Fi credentials, device backups, or caches.
 - Initial fork setup changes no firmware behavior and flashes nothing. Preserve
   device storage and the installed recovery baseline during subsequent upgrades.
+
+## Echo identity
+
+Read `documentation/echo/README.md` for the Echo launcher and deployment. Preserve
+API 87.1; the five new Echo icons are intentionally disabled in the export CSV.
+Build `updater_minpackage SKIP_EXTERNAL=1` for firmware-only installs, and upload
+the Echo asset pack and Echo Radio FAP separately. Do not use a resources bundle
+that removes existing external apps. Run `scripts/echo_validate.py` alongside
+the build and check launcher navigation on-device. Renaming the device changes
+the USB serial-port name; re-enumerate before connecting.

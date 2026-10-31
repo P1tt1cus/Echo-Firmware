@@ -20,6 +20,7 @@ on:
 
 jobs:
   webhook:
+    if: github.repository == 'Next-Flip/Momentum-Firmware'
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout code"

@@ -2,6 +2,7 @@ name: "Release"
 
 on:
   release:
+    if: github.repository == 'Next-Flip/Momentum-Firmware'
     types:
       - released
 

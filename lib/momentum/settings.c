@@ -7,11 +7,11 @@
 #define TAG "MomentumSettings"
 
 MomentumSettings momentum_settings = {
-    .asset_pack = "", // Default
+    .asset_pack = "Echo", // Echo desktop pulse
     .anim_speed = 100, // 100%
     .cycle_anims = 0, // Meta.txt
     .unlock_anims = false, // OFF
-    .menu_style = MenuStyleDsi, // DSi
+    .menu_style = MenuStyleCompact,
     .lock_on_boot = true, // ON
     .bad_pins_format = false, // OFF
     .allow_locked_rpc_usb = false, // OFF
