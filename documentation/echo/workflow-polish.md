@@ -20,8 +20,8 @@ claims. Do not label an unperformed physical test as passed.
 | 1 | Stability: memory, browser cancellation, worker/radio cleanup | Browser fixes and sanitizer checks pass; device regression pending final core install; radio cleanup continues in stages 4–6 |
 | 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/build and device UI pass; physical tag tests pending |
 | 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
-| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | In progress: duplicate identity/removal audit |
-| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Pending |
+| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
+| 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | In progress: cancellation fixes pass host tests/build; feedback and physical checks pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Pending |
 | 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Pending |
 | 8 | Cross-app contextual actions and measured performance review | Pending |
@@ -142,3 +142,32 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Physical transmission, repeat timing and receiver response remain unverified.
   Existing native RAW file-worker malformed-file/progress behavior is queued for
   stage 7's corrupt-file handling review; it is not claimed fixed by these app changes.
+
+- Native Sub-GHz 1.3 and Replay Bench 1.1 source `98b97d984` installed; local/device
+  MD5 respectively `af560fa7e2c8ec9cdf04b395f612764a` and
+  `959a4a18afd890013841882a6d239fd6`. API87.1 builds pass. CI firmware
+  `41228281567` and lint `41228281562` passed.
+- Device screens show RAW **Ready to record**, loaded synthetic capture filename,
+  and Help → Back retaining Help selection. No transmit button was pressed.
+- During grouped input checks, screens unexpectedly changed to Radio and then
+  Sub-GHz. User confirmed no button interaction. Cause remains unresolved; fresh
+  bench launch and one-button-at-a-time Help/Back checks passed. Do not count the
+  interrupted preparation/cancellation check as passed. Repeat during final
+  regression after core update; screenshots are retained for comparison.
+
+### Stage 5: BLE/HID — in progress
+
+- Disconnect now takes priority over simultaneous start/resume/connect flags.
+  Coalesced reconnect returns to idle instead of continuing the interrupted run.
+- Scheduled start listens for disconnect; interruption during the 1.5 second
+  connection wait cancels the pending run. Cancel also wins over simultaneous
+  connection. End during that wait exits directly. Start rechecks link presence.
+- Worker exit releases keys/buttons before destroying the HID interface. BLE
+  instance fields are explicitly zero-initialized before status callbacks start.
+- `echo_hid_control_test.py`: PASS (ASAN/UBSAN), actual production worker with
+  scripted event/radio/storage adapters: active, paused, button-wait and delayed
+  string cancellation, disconnect/connect races, canceled/normal scheduled starts,
+  normal completion, link-loss start guard and exit release. `fap_bad_kb`: PASS.
+- This first cancellation patch is not installed. Remaining work: connection and
+  pairing UI, long-command cancellation, status callback/pairing lifecycle review,
+  physical paired-host test. No keystrokes were sent to a host.

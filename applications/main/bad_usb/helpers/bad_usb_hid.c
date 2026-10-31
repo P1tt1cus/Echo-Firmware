@@ -162,7 +162,7 @@ void hid_ble_adjust_config(BadUsbHidConfig* hid_cfg) {
 }
 
 void* hid_ble_init(BadUsbHidConfig* hid_cfg) {
-    BleHidInstance* ble_hid = malloc(sizeof(BleHidInstance));
+    BleHidInstance* ble_hid = calloc(1, sizeof(BleHidInstance));
     ble_hid->bt = furi_record_open(RECORD_BT);
     ble_hid->bt->suppress_pin_screen = true;
     bt_disconnect(ble_hid->bt);
