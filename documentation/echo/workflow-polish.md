@@ -23,7 +23,7 @@ claims. Do not label an unperformed physical test as passed.
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/build and device UI pass; physical IR tests pending |
-| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Audit started; RAW failure paths identified |
+| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | IR parsing/error cleanup and shared name validation implemented; Sub-GHz RAW and save/rename failure handling pending |
 | 8 | Cross-app contextual actions and measured performance review | Pending |
 | 9 | Full regression, install/hash checks, physical validation, passing fork PR | Pending |
 
@@ -296,3 +296,11 @@ not in source. Never commit captures, credential data or pairing secrets.
   and the new reader with the same instrumented allocator: a parsed → 1024-sample
   RAW read used 2 allocations / 8192 peak timing bytes before, and 1 / 4096 after.
   Evidence is retained in `build/workflow-polish-install/ir-allocation-benchmark.json`.
+
+- Final IR 1.3 source `d47cc186c` installed, local/device MD5
+  `1a3ef1b2f3451fe6011042226460b54f`. Corrected wrong-format dialog visually checked:
+  Not an IR / remote file, without clipped paths. Back exits cleanly. Earlier
+  empty/carrier/NaN device checks used the same parser from `cca28a1b8`.
+- Shared filename changes are in the built core only; installed core remains
+  `13e6960e`. Finish Sub-GHz RAW worker and safe save/rename review before installing
+  the combined package. Keep physical RF/IR/HID checks separate from these UI tests.
