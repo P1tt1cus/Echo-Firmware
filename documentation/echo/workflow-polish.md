@@ -552,7 +552,7 @@ not in source. Never commit captures, credential data or pairing secrets.
   `62ec6cd07b19a3603f40eb33bffa39b3`. Reorder's first→last preview showed
   Volume_RAW_test, Third_test, Power_test. Back restored the original order
   and unchanged MD5 `566e93349264f56b6566c1705c4652e6`. Repeating the move
-  and pressing OK saved that insertion order. The 331-byte USB readback matched
+  and pressing OK saved that insertion order. The 312-byte USB readback matched
   every original parsed/RAW field; only ordering/serialization changed, MD5
   `9a096c7f0ba2328532e921431145453f`. Reopening showed that saved order and
   RAW 38 kHz / 4 samples. All synthetic remote/staging siblings removed; loader
