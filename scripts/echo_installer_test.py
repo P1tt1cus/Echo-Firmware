@@ -28,7 +28,7 @@ int main(void) {
  for(unsigned i=0;i<256;i++)echo_install_draw(&c,"Installing Echo 75%",i,false);
  assert(drawn(&c,"100%")&&drawn(&c,"Installing Echo")&&!drawn(&c,"Installing Echo 75%"));
  echo_install_draw(&c,"Restarting... 100%",97,false);
- assert(drawn(&c,"Echo is ready")&&drawn(&c,"100%")&&drawn(&c,"Starting Echo"));
+ assert(drawn(&c,"Restarting Echo")&&drawn(&c,"100%")&&drawn(&c,"Please wait"));
  echo_install_draw(&c,"Waiting for SD card",0,false);
  assert(drawn(&c,"0%")&&drawn(&c,"Waiting for SD card"));
  echo_install_draw(&c,"Flash compare error\n#[4-100]",75,true);

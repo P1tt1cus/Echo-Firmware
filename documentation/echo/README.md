@@ -116,7 +116,7 @@ settings, built-in and unmodified third-party app menus on the device.
 
 The update confirmation displays **Install Echo / Echo 1.1**. During installation,
 the private code-drawn pulse and ECHO wordmark accompany real overall progress,
-a plain-language stage and a completion screen. Error screens retain the exact
+a plain-language stage and a restart screen. Error screens retain the exact
 diagnostic and stage code, short-OK retry and long-Back exit. Flash validation,
 backup/restore, power controls and recovery logic are unchanged.
 
@@ -128,7 +128,10 @@ update `scripts/version.py`, `fbt_options.py`, the default in
 
 Run `python3 scripts/echo_installer_test.py --package-check` after the firmware
 and updater build. It checks the production renderer at every progress value,
-completion, SD wait, diagnostics and generated package identity. The renderer
+restarts, SD wait, diagnostics and generated package identity. The renderer
 can also be included in a temporary preview FAP for on-device visual checks;
 remove the preview afterward. RPC is unavailable during the RAM flasher, so
 distinguish preview screenshots from actual install completion evidence.
+
+The updater restarts between backup, flashing and restore. Its restart screen
+says **Restarting Echo**, never declares completion before the desktop returns.

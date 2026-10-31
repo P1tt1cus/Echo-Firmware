@@ -59,7 +59,7 @@ static inline void
     bool complete = strncmp(status, "Restarting", 10) == 0;
     unsigned percent = complete ? 100 : (progress > 100 ? 100 : progress);
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 6, 9, complete ? "Echo is ready" : "Installing Echo");
+    canvas_draw_str(canvas, 6, 9, complete ? "Restarting Echo" : "Installing Echo");
     char number[6];
     snprintf(number, sizeof(number), "%u%%", percent);
     canvas_draw_str_aligned(canvas, 122, 9, AlignRight, AlignBottom, number);
@@ -77,5 +77,5 @@ static inline void
     }
     echo_install_text(canvas, 6, 55, 116, stage);
     canvas_set_font(canvas, FontKeyboard);
-    echo_install_text(canvas, 6, 63, 116, complete ? "Starting Echo" : "Keep powered on");
+    echo_install_text(canvas, 6, 63, 116, complete ? "Please wait" : "Keep powered on");
 }
