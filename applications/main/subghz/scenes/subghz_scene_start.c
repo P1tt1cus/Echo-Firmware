@@ -73,7 +73,20 @@ bool subghz_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_next_scene(subghz->scene_manager, SubGhzSceneReceiver);
             return true;
         } else if(event.event == SubmenuIndexReplayBench) {
-            scene_manager_next_scene(subghz->scene_manager, SubGhzSceneReplayBench);
+            FuriString* self_path = furi_string_alloc();
+            Loader* loader = furi_record_open(RECORD_LOADER);
+            furi_check(loader_get_application_launch_path(loader, self_path));
+            loader_enqueue_launch(
+                loader,
+                EXT_PATH("apps/Sub-GHz/echo_replay.fap"),
+                NULL,
+                LoaderDeferredLaunchFlagGui);
+            loader_enqueue_launch(
+                loader, furi_string_get_cstr(self_path), NULL, LoaderDeferredLaunchFlagGui);
+            furi_record_close(RECORD_LOADER);
+            furi_string_free(self_path);
+            scene_manager_stop(subghz->scene_manager);
+            view_dispatcher_stop(subghz->view_dispatcher);
             return true;
         } else if(event.event == SubmenuIndexSaved) {
             scene_manager_next_scene(subghz->scene_manager, SubGhzSceneSaved);

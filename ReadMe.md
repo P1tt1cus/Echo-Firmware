@@ -61,13 +61,13 @@ dist/f7-C/f7-update-echo-1.1-<commit>/
   updater.bin
 ```
 
-This package updates the MCU firmware and updater; it does not replace the Bluetooth radio stack or SD-card resources/apps. Build the native dashboard apps and Echo's configuration app separately:
+This package updates the MCU firmware and updater; it does not replace the Bluetooth radio stack or SD-card resources/apps. Build the native dashboard apps, Echo's configuration app and Replay Bench separately:
 
 ```sh
-FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz fap_momentum_app SKIP_EXTERNAL=1
+FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay SKIP_EXTERNAL=1
 ```
 
-Their FAPs are written to `build/f7-firmware-C/.extapps/`. Successful [Echo firmware CI runs](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml) also provide an `echo-f7-api87.1` artifact containing the update and these four apps. CI artifacts are development builds, not a separate stable release channel.
+Their FAPs are written to `build/f7-firmware-C/.extapps/`. Successful [Echo firmware CI runs](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml) also provide an `echo-f7-api87.1` artifact containing the update and these five apps. CI artifacts are development builds, not a separate stable release channel.
 
 ## Install
 

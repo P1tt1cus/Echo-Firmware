@@ -564,7 +564,9 @@ bool subghz_scene_replay_bench_on_event(void* context, SceneManagerEvent event) 
         } else if(b->mode != BenchMenu) {
             bench_menu(subghz);
         } else {
-            scene_manager_previous_scene(subghz->scene_manager);
+            if(!scene_manager_previous_scene(subghz->scene_manager)) {
+                view_dispatcher_stop(subghz->view_dispatcher);
+            }
         }
         return true;
     }

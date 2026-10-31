@@ -1,8 +1,10 @@
 # Sub-GHz Replay Bench
 
-Replay Bench is included in the **Sub-GHz 1.2 app** for Echo, targeting f7/API
-87.1. It uses the Flipper's internal CC1101; no ESP32 or external radio is needed.
-Open **Tools → Sub-GHz → Replay Bench**.
+**Echo Replay Bench 1.0** is a separate app, launched from the **Sub-GHz 1.2**
+dashboard, targeting f7/API 87.1. It uses the Flipper's internal CC1101; no ESP32 or external radio is needed.
+Open **Tools → Sub-GHz → Replay Bench**, or **Apps → Sub-GHz → Echo Replay Bench**.
+The dashboard closes before launching the bench to leave memory for file browsing
+and RAW playback; Back returns to Sub-GHz when launched through that dashboard.
 
 ## Compare captures
 
@@ -70,25 +72,29 @@ most recent test's frozen capture summary even if a different A/B pair is later
 selected. Reports include saved keys and source filenames; treat them as capture
 data. They are not uploaded automatically.
 
-Limits: 256 KiB per input file, 8192 bytes per line, decoded replay files at most
+Limits: 256 KiB per input file, 512 bytes per metadata line and 8192 bytes per
+RAW data line, decoded replay files at most
 8 KiB, RAW replay duration at most 10 seconds, decoded key display up to 32
 bytes. Unsupported or malformed files are rejected. Larger files may still be
-usable in the original Sub-GHz workflows. The selected radio is restored on
-normal exit. The bench does not overwrite original capture files or save
+usable in the original Sub-GHz workflows. The separate bench starts with the internal radio and does not save a new
+radio preference. The bench does not overwrite original capture files or save
 modified rolling-code data.
 
 ## Build and validation
 
 ```sh
-FBT_NO_SYNC=1 ./fbt -j4 fap_subghz SKIP_EXTERNAL=1
+FBT_NO_SYNC=1 ./fbt -j4 fap_subghz fap_echo_replay SKIP_EXTERNAL=1
 python3 scripts/echo_replay_test.py
 python3 scripts/echo_replay_control_test.py
 python3 scripts/echo_dashboard_test.py
 ```
 
-Replace `/ext/apps/Sub-GHz/subghz.fap` with
-`build/f7-firmware-C/.extapps/subghz.fap` while the app is closed. A core firmware
-flash is not required. Public API 87.1, original app ID and data paths remain.
+With both apps closed, install `subghz.fap` and `echo_replay.fap` from
+`build/f7-firmware-C/.extapps/` into `/ext/apps/Sub-GHz/`. Both files are required
+for the dashboard shortcut; Echo Replay Bench can also be opened directly.
+The Sub-GHz manifest includes `echo_replay` as a dependency, even when other
+external apps are skipped.
+A core firmware flash is not required. Public API 87.1, original app ID and data paths remain.
 
 The parser tests compile production code with address/undefined-behaviour
 sanitizers. They cover fragmented reads, metadata, key bit differences, RAW

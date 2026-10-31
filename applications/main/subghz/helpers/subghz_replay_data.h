@@ -6,6 +6,7 @@
 
 #define ECHO_REPLAY_FILE_MAX    (256U * 1024U)
 #define ECHO_REPLAY_LINE_MAX    8192U
+#define ECHO_REPLAY_FIELD_MAX   512U
 #define ECHO_REPLAY_KEY_MAX     32U
 #define ECHO_REPLAY_TX_LIMIT_MS 10000U
 
@@ -25,7 +26,10 @@ typedef struct {
 
 typedef struct {
     EchoReplayCapture capture;
-    char line[ECHO_REPLAY_LINE_MAX + 1];
+    char line[ECHO_REPLAY_FIELD_MAX + 1];
+    size_t line_bytes;
+    uint32_t line_pulses;
+    bool raw_line;
     size_t used;
     uint32_t fields;
     bool failed;

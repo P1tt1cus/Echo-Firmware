@@ -28,6 +28,7 @@ static bool parse(EchoReplayParser* p,const char* text,size_t stride) {
 }
 
 int main(void) {
+ assert(sizeof(EchoReplayParser)<1024);
  EchoReplayParser* p=malloc(sizeof(*p));
  char text[1024];snprintf(text,sizeof(text),"%sKey: 00 00 00 00 00 12 34 56\nTE: 350\n",header);
  EchoReplayCapture a={0};
@@ -50,6 +51,10 @@ int main(void) {
   assert(parse(p,raw,stride));assert(p->capture.raw);
   assert(p->capture.pulses==5&&p->capture.duration_us==1500);
  }
+ char large_raw[7000];
+ snprintf(large_raw,sizeof(large_raw),"Filetype: Flipper SubGhz RAW File\nVersion: 1\nFrequency: 433920000\nPreset: FuriHalSubGhzPresetOok650Async\nProtocol: RAW\nRAW_Data: ");
+ for(unsigned i=0;i<1000;i++)strcat(large_raw,"1 -2 ");
+ assert(parse(p,large_raw,17));assert(p->capture.pulses==2000&&p->capture.duration_us==3000);
  const char* bad[]={"", "Version: 1\n", "Filetype: Wrong\n", "Filetype: Flipper SubGhz Key File\nVersion: 2\n", "Frequency: 4294967296\n", "Frequency: -1\n", "Version: 1\nVersion: 1\n", "Key: GG\n", "Key: 0\n", "Key: 00zz\n", "RAW_Data: 0\n", "RAW_Data: -\n", "RAW_Data: 2147483648\n", "RAW_Data: 100 -100 garbage\n"};
  for(size_t i=0;i<sizeof(bad)/sizeof(*bad);i++)assert(!parse(p,bad[i],1));
  snprintf(text,sizeof(text),"%sKey: 00 00 00 00 00 12 34 56\nProtocol: Other",header);
@@ -63,8 +68,8 @@ int main(void) {
  echo_replay_parser_init(p);assert(!echo_replay_parser_feed(p,(uint8_t*)longline,ECHO_REPLAY_LINE_MAX+1));
  free(longline);
  echo_replay_parser_init(p);
- uint8_t comment[1024];memset(comment,'x',sizeof(comment));comment[0]='#';comment[1023]='\n';
- for(unsigned i=0;i<256;i++)assert(echo_replay_parser_feed(p,comment,sizeof(comment)));
+ uint8_t comment[256];memset(comment,'x',sizeof(comment));comment[0]='#';comment[255]='\n';
+ for(unsigned i=0;i<1024;i++)assert(echo_replay_parser_feed(p,comment,sizeof(comment)));
  assert(!echo_replay_parser_feed(p,comment,1));
  // Deterministic malformed input corpus, including arbitrary chunk boundaries.
  unsigned seed=42;uint8_t fuzz[1024];

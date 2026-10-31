@@ -63,8 +63,14 @@ SubGhzTxRx* subghz_txrx_alloc(void) {
     //set default device External
     subghz_devices_init();
     instance->radio_device_type = SubGhzRadioDeviceTypeInternal;
-    instance->radio_device_type =
-        subghz_txrx_radio_device_set(instance, SubGhzRadioDeviceTypeExternalCC1101);
+    instance->radio_device_type = subghz_txrx_radio_device_set(
+        instance,
+#ifdef ECHO_REPLAY_BENCH
+        SubGhzRadioDeviceTypeInternal
+#else
+        SubGhzRadioDeviceTypeExternalCC1101
+#endif
+    );
 #endif
 
     return instance;

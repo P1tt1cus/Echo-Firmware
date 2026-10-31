@@ -150,3 +150,11 @@ Build `fap_momentum_app` for its menu-editor label update; install the resulting
 `/ext/apps/assets/momentum_app.fap`. This is separate from a firmware-only update.
 The historical `MNTM` menu style remains a legacy layout; Echo uses Compact.
 Repository branding changes do not require a device rename or erase.
+
+## Sub-GHz Replay Bench
+
+[Replay Bench](replay-bench.md) compares saved captures and prepares a bounded
+replay with separate manual receiver observations. Install the Sub-GHz 1.2
+dashboard and Echo Replay Bench 1.0 FAPs together; API 87.1 and the installed
+core remain compatible. The bench runs separately to leave heap for SD browsing
+and RAW encoding.

@@ -83,27 +83,31 @@ static bool parse_line(EchoReplayParser* p) {
         }
         return c->key_size != 0;
     default:
-        if(strcmp(field, "RAW_Data") != 0) return true;
-        if(!*value) return false;
-        while(*value) {
-            if(*value == '-') value++;
-            char* end = value;
-            while(*end >= '0' && *end <= '9')
-                end++;
-            if(end == value || (*end && !isspace((unsigned char)*end))) return false;
-            char saved = *end;
-            *end = 0;
-            bool valid = number(value, &value32) && value32 > 0 && value32 <= 1000000;
-            *end = saved;
-            if(!valid) return false;
-            c->pulses++;
-            c->duration_us += value32;
-            value = end;
-            while(isspace((unsigned char)*value))
-                value++;
-        }
         return true;
     }
+}
+
+static bool raw_token(EchoReplayParser* p) {
+    if(!p->used) return true;
+    p->line[p->used] = 0;
+    const char* value = p->line;
+    if(*value == '-') value++;
+    uint32_t duration;
+    if(!number(value, &duration) || !duration || duration > 1000000) return false;
+    p->capture.pulses++;
+    p->line_pulses++;
+    p->capture.duration_us += duration;
+    p->used = 0;
+    return true;
+}
+
+static bool finish_line(EchoReplayParser* p) {
+    bool valid = p->raw_line ? raw_token(p) && p->line_pulses > 0 : parse_line(p);
+    p->used = 0;
+    p->line_bytes = 0;
+    p->raw_line = false;
+    p->line_pulses = 0;
+    return valid;
 }
 
 void echo_replay_parser_init(EchoReplayParser* p) {
@@ -117,18 +121,31 @@ bool echo_replay_parser_feed(EchoReplayParser* p, const uint8_t* data, size_t si
     for(size_t i = 0; i < size; i++) {
         p->capture.fingerprint = (p->capture.fingerprint ^ data[i]) * 16777619U;
         if(data[i] == '\n') {
-            if(!parse_line(p)) return !(p->failed = true);
-            p->used = 0;
+            if(!finish_line(p)) return !(p->failed = true);
         } else {
-            if(data[i] == 0 || p->used == ECHO_REPLAY_LINE_MAX) return !(p->failed = true);
-            p->line[p->used++] = data[i];
+            if(data[i] == 0 || ++p->line_bytes > ECHO_REPLAY_LINE_MAX) return !(p->failed = true);
+            if(p->raw_line && isspace(data[i])) {
+                if(!raw_token(p)) return !(p->failed = true);
+            } else if(!p->raw_line && data[i] == ':') {
+                p->line[p->used] = 0;
+                if(strcmp(trim(p->line), "RAW_Data") == 0) {
+                    p->raw_line = true;
+                    p->used = 0;
+                } else {
+                    if(p->used == ECHO_REPLAY_FIELD_MAX) return !(p->failed = true);
+                    p->line[p->used++] = data[i];
+                }
+            } else {
+                if(p->used == ECHO_REPLAY_FIELD_MAX) return !(p->failed = true);
+                p->line[p->used++] = data[i];
+            }
         }
     }
     return true;
 }
 
 bool echo_replay_parser_finish(EchoReplayParser* p) {
-    if(p->failed || (p->used && !parse_line(p))) return false;
+    if(p->failed || (p->line_bytes && !finish_line(p))) return false;
     p->used = 0;
     if((p->fields & 31U) != 31U) return false;
     if(p->capture.raw != (strcmp(p->capture.protocol, "RAW") == 0)) return false;

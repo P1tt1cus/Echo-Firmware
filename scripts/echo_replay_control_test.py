@@ -82,7 +82,8 @@ static void subghz_txrx_stop(TxRx* t){(void)t;stops++;}
 static bool subghz_devices_is_async_complete_tx(void* d){(void)d;return complete;}
 static void view_dispatcher_send_custom_event(void* v,uint32_t e){(void)v;posted=e;}
 static void view_dispatcher_switch_to_view(void* v,int i){(void)v;(void)i;}
-static void scene_manager_previous_scene(void* s){(void)s;}
+static bool scene_manager_previous_scene(void* s){(void)s;return false;}
+static void view_dispatcher_stop(void* s){(void)s;}
 static void submenu_reset(void* s){(void)s;}
 static void submenu_set_header(void* s,const char* h){(void)s;(void)h;observed_menu++;}
 static void submenu_add_item(void* s,const char* l,uint32_t e,void(*cb)(void*,uint32_t),void* c){(void)s;(void)l;(void)e;(void)cb;(void)c;}
