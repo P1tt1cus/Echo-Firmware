@@ -19,8 +19,8 @@ claims. Do not label an unperformed physical test as passed.
 | --- | --- | --- |
 | 1 | Stability: memory, browser cancellation, worker/radio cleanup | Browser fixes and sanitizer checks pass; device regression pending final core install; radio cleanup continues in stages 4–6 |
 | 2 | RFID: search/decode feedback, write verification and specific failures | Implemented; host/build and device UI pass; physical tag tests pending |
-| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build pass; device status check in progress |
-| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Pending |
+| 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
+| 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | In progress: duplicate identity/removal audit |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Pending |
 | 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Pending |
@@ -99,3 +99,11 @@ not in source. Never commit captures, credential data or pairing secrets.
   partial/full/UID/auth-incomplete data, capability flags, shadow status and 100
   Status/Details/Back cycles. `fap_nfc`: PASS, embedded protocol plugins/API87.1.
 - Physical NFC reads/emulation and modified-card behavior remain pending fixtures.
+- NFC 1.2 source `d874fd592` installed; local/device MD5
+  `b814866c5ae99178419bf43958dbab11`. Synthetic ISO14443-3A file opened through
+  Saved (direct file launch would start emulation). Info → Status → Back checked
+  visually, including UID-only capability and identification-only data.
+- Synthetic source MD5 `0ccae45f878f57f06f077e6ad2dc22eb` unchanged, fixture
+  removed after closing NFC. No NFC emulation/transmission or card write performed.
+  Screenshots and previous FAP retained locally; no private card data used.
+- Info views reserve a footer for Status; embedded plugin builds included.
