@@ -480,3 +480,20 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Remaining saved-file audit: IR batch edits stage a file but use an overwrite
   rename that deletes the original destination first; IR rename also treats
   FSE_EXIST as success. Fix these before the combined core/file regression.
+
+- Sub-GHz 1.4 and Add Manually 1.1 source `f831a0365` installed; device/local
+  MD5 `2c5a4e28d46117f8098a0d6f7ef7bb32` and
+  `465c072e8f016d0320ba1250eb863249`. Both prior binaries retained locally.
+  Synthetic unchanged-name save and rename `00_EchoSignal` → `00_EchoSignal_`
+  returned to the selected file. Rename preserved MD5
+  `935284ef0a51c279e26a8ee08a2474a7`, including its comment/Repeat field, and the
+  old name was absent. Add Manually generated a GateTX file without transmitting;
+  its 177-byte readback had the expected header/version/frequency/24-bit key and
+  no transient Repeat field, MD5 `e0f391bc0c0d58b1eb31809091aed6e4`.
+  Both synthetic files removed; loader idle/desktop verified. Core RAW-worker
+  changes remain uninstalled, so these checks establish normal app file handling
+  only. One-input-per-session navigation was stable throughout this pass.
+- CI `f831a0365` passed firmware `41234101248` and lint `41234101251`.
+  Next: IR create/append/batch edit/move/rename transactional save audit. IR move
+  currently deletes then reinserts in separate commits; an insertion failure
+  can therefore lose the moved signal. Preserve it in one staged replacement.
