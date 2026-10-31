@@ -56,6 +56,8 @@ bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
 
     if(event.type == SceneManagerEventTypeCustom) {
         consumed = true;
+        /* Save selection before scenes that may open a synchronous file picker. */
+        scene_manager_set_scene_state(nfc->scene_manager, NfcSceneStart, event.event);
         if(event.event == SubmenuIndexRead) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneDetect);
             dolphin_deed(DolphinDeedNfcRead);
@@ -71,9 +73,6 @@ bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneDebug);
         } else {
             consumed = false;
-        }
-        if(consumed) {
-            scene_manager_set_scene_state(nfc->scene_manager, NfcSceneStart, event.event);
         }
     }
     return consumed;
