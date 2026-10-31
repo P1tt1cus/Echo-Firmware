@@ -1,6 +1,6 @@
 App(
     appid="infrared",
-    fap_version=(1, 1),
+    fap_version=(1, 2),
     name="Infrared",
     apptype=FlipperAppType.MENUEXTERNAL,
     entry_point="infrared_app",

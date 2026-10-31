@@ -35,6 +35,8 @@ jobs:
           python3 scripts/echo_hid_control_test.py
           python3 scripts/echo_hid_view_test.py
           python3 scripts/echo_hid_profile_test.py
+          python3 scripts/echo_ir_view_test.py
+          python3 scripts/echo_ir_control_test.py
           python3 scripts/echo_installer_test.py --package-check
       - uses: actions/upload-artifact@v4
         with:

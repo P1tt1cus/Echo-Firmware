@@ -22,7 +22,7 @@ claims. Do not label an unperformed physical test as passed.
 | 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
-| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Pending |
+| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host tests pass; final build/device UI pending |
 | 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Pending |
 | 8 | Cross-app contextual actions and measured performance review | Pending |
 | 9 | Full regression, install/hash checks, physical validation, passing fork PR | Pending |
@@ -209,3 +209,25 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Existing `infrared_tx_start` rate-limits requests and `infrared_tx_stop` joins the
   worker. Preserve protocol-specific repeat handling; UI feedback must distinguish
   an actual started worker from a rate-limited request.
+
+- Remote screen now uses a horizontal list with remote name/position, selected
+  button, parsed protocol or RAW carrier/sample count, and Hold OK/Release/Back
+  controls. Learn and Edit remain list actions. Up/Down wraps; Left/Right pages.
+- Signal details load once per selection/re-entry, not on every redraw. The same
+  validated in-memory signal is used for sending. Read failures show explicitly.
+  Selection survives Edit/return, with bounds checks for empty/shrinking lists.
+- Callbacks run outside the model lock. Held input freezes selection; Back cancels
+  intent immediately, including during SD loading. The app rechecks intent after
+  loading before TX. Short taps retain start/release sequencing; duplicate starts
+  cannot replace a signal already used by the worker.
+- Back stops active TX; a subsequent Back leaves. Remote and learn-result exits
+  stop TX, and final app cleanup stops before freeing the worker/signal. Existing
+  protocol repeat encoding and the 50 ms inter-send limit remain intact; a blocked
+  fast repeat shows Wait, then press OK instead of claiming active TX.
+- Learn results label RAW capture with carrier/sample count and Hold OK control.
+- `echo_ir_view_test.py`: PASS (ASAN/UBSAN), production view, 0–99 signal lists,
+  layout bounds, wrap/page navigation, restored selection, held/short/Back events,
+  unlocked callbacks and stale metadata. `echo_ir_control_test.py`: PASS, actual
+  scene and TX functions with SD/worker adapters, parsed/RAW setup, cached loads,
+  short/held lifecycle, duplicate/rate-limited starts, cancellation during loading,
+  invalid signals and remote/learn exit cleanup. Physical IR output remains pending.

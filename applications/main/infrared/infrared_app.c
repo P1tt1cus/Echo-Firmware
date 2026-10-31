@@ -200,6 +200,10 @@ static InfraredApp* infrared_alloc(void) {
     view_dispatcher_add_view(
         view_dispatcher, InfraredViewDialogEx, dialog_ex_get_view(infrared->dialog_ex));
 
+    infrared->remote_view = infrared_remote_view_alloc();
+    view_dispatcher_add_view(
+        view_dispatcher, InfraredViewRemote, infrared_remote_view_get_view(infrared->remote_view));
+
     infrared->button_menu = button_menu_alloc();
     view_dispatcher_add_view(
         view_dispatcher, InfraredViewButtonMenu, button_menu_get_view(infrared->button_menu));
@@ -245,6 +249,7 @@ static void infrared_free(InfraredApp* infrared) {
     furi_thread_join(infrared->task_thread);
     furi_thread_free(infrared->task_thread);
 
+    infrared_tx_stop(infrared);
     ViewDispatcher* view_dispatcher = infrared->view_dispatcher;
     InfraredAppState* app_state = &infrared->app_state;
 
@@ -264,6 +269,9 @@ static void infrared_free(InfraredApp* infrared) {
 
     view_dispatcher_remove_view(view_dispatcher, InfraredViewDialogEx);
     dialog_ex_free(infrared->dialog_ex);
+
+    view_dispatcher_remove_view(view_dispatcher, InfraredViewRemote);
+    infrared_remote_view_free(infrared->remote_view);
 
     view_dispatcher_remove_view(view_dispatcher, InfraredViewButtonMenu);
     button_menu_free(infrared->button_menu);
@@ -404,6 +412,7 @@ void infrared_tx_start(InfraredApp* infrared) {
 
 InfraredErrorCode infrared_tx_start_button_index(InfraredApp* infrared, size_t button_index) {
     furi_assert(button_index < infrared_remote_get_signal_count(infrared->remote));
+    if(infrared->app_state.is_transmitting) return InfraredErrorCodeNone;
 
     InfraredErrorCode error =
         infrared_remote_load_signal(infrared->remote, infrared->current_signal, button_index);
