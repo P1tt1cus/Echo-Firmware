@@ -22,8 +22,8 @@ claims. Do not label an unperformed physical test as passed.
 | 3 | NFC: completeness, emulation limits, missing keys and original/modified data | Implemented; host/build and synthetic-file device UI pass; physical tests pending |
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
-| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host tests pass; final build/device UI pending |
-| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Pending |
+| 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/build and device UI pass; physical IR tests pending |
+| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Audit started; RAW failure paths identified |
 | 8 | Cross-app contextual actions and measured performance review | Pending |
 | 9 | Full regression, install/hash checks, physical validation, passing fork PR | Pending |
 
@@ -231,3 +231,27 @@ not in source. Never commit captures, credential data or pairing secrets.
   scene and TX functions with SD/worker adapters, parsed/RAW setup, cached loads,
   short/held lifecycle, duplicate/rate-limited starts, cancellation during loading,
   invalid signals and remote/learn exit cleanup. Physical IR output remains pending.
+
+- IR 1.2 source `a932fcc1e` installed; local/device MD5
+  `05758786ed5f7aa3e892b8433d023cc0`. API87.1 build passes. Device synthetic remote
+  shows Parsed NEC, RAW 38 kHz / 4 samples, and Cannot read signal for an unknown
+  protocol. Edit → Back restores the Edit row. No send button was pressed and no
+  appliance response was tested. Source fixtures/screenshots/previous binary are
+  retained locally in `build/workflow-polish-install/`.
+
+### Stage 7: files — audit started
+
+- IR `infrared_signal_read_raw` accepts a zero timing count and returns success
+  after a setter that returns early, potentially retaining an earlier parsed signal.
+  Its setter silently clamps invalid carrier/duty data; NaN duty escapes comparisons.
+  Validate file input before replacing a signal, and test unchanged prior data on
+  rejected reads. Check zero/oversized timings and 32-bit protocol mask shifts.
+- IR direct-file load error returns from `infrared_app` without releasing its
+  allocated app. Normal exit resets TX output before the new final-free stop guard;
+  stop before changing output as well. Test these teardown paths.
+- Sub-GHz file worker starts before file validation. Open/header failures can reach
+  the completion wait without publishing an end marker, leaving TX waiting. RAW
+  data parser accepts malformed/empty records and turns extreme durations into
+  arbitrary 100 us pulses. Progress subtracts binary buffered bytes from a text-file
+  offset and can underflow/divide by zero. Fix with explicit validation and bounded
+  progress semantics while preserving the existing public API.
