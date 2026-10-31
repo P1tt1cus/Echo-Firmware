@@ -120,7 +120,7 @@ LIST_DEF(MenuAppList, MenuApp, M_POD_OPLIST)
 typedef struct {
     LoaderMenu* loader_menu;
     Menu* primary_menu;
-    Menu* echo_menu;
+    View* echo_menu;
     Submenu* settings_menu;
     MenuAppList_t apps_list;
 } LoaderMenuApp;
@@ -220,26 +220,78 @@ static void loader_menu_echo_callback(void* context, uint32_t index) {
     }
 }
 
-static void loader_menu_build_echo(LoaderMenuApp* app) {
+typedef struct {
+    uint32_t selected;
+} EchoMenuModel;
+
+static void loader_menu_echo_draw(Canvas* canvas, void* context) {
+    const EchoMenuModel* model = context;
     static const char* labels[] = {"Radio", "Remotes", "Sessions", "Tools", "Settings"};
     const Icon* icons[] = {
-        &I_EchoRadio_14,
-        &I_EchoRemotes_14,
-        &I_EchoSessions_14,
-        &I_EchoTools_14,
-        &I_EchoSettings_14};
+        &I_EchoRadio_10,
+        &I_EchoRemotes_10,
+        &I_EchoSessions_10,
+        &I_EchoTools_10,
+        &I_EchoSettings_10};
+    canvas_clear(canvas);
+    canvas_set_color(canvas, ColorBlack);
+    canvas_set_font(canvas, FontPrimary);
+    canvas_draw_str(canvas, 3, 10, "ECHO");
+    canvas_draw_icon(canvas, 114, 1, &I_EchoRadio_10);
+    canvas_draw_line(canvas, 2, 12, 125, 12);
+    canvas_set_font(canvas, FontSecondary);
     for(size_t i = 0; i < COUNT_OF(labels); ++i) {
-        menu_add_item(app->echo_menu, labels[i], icons[i], i, loader_menu_echo_callback, app);
+        uint8_t y = 14 + i * 10;
+        if(i == model->selected) {
+            canvas_draw_rbox(canvas, 1, y, 126, 10, 2);
+            canvas_set_color(canvas, ColorWhite);
+        }
+        canvas_draw_icon(canvas, 4, y, icons[i]);
+        canvas_draw_str(canvas, 19, y + 8, labels[i]);
+        canvas_set_color(canvas, ColorBlack);
     }
-    menu_set_selected_item(app->echo_menu, app->loader_menu->selected_echo);
+}
+
+static bool loader_menu_echo_input(InputEvent* event, void* context) {
+    LoaderMenuApp* app = context;
+    if(event->key == InputKeyBack) return false;
+    bool select = false;
+    uint32_t selected = 0;
+    with_view_model(
+        app->echo_menu,
+        EchoMenuModel * model,
+        {
+            if(event->type == InputTypeShort || event->type == InputTypeRepeat) {
+                if(event->key == InputKeyUp) model->selected = (model->selected + 4) % 5;
+                if(event->key == InputKeyDown) model->selected = (model->selected + 1) % 5;
+                select = event->key == InputKeyOk && event->type == InputTypeShort;
+            }
+            selected = model->selected;
+        },
+        true);
+    /* Release the view model before queuing an application or switching views. */
+    if(select) loader_menu_echo_callback(app, selected);
+    return true;
+}
+
+static void loader_menu_build_echo(LoaderMenuApp* app) {
+    app->echo_menu = view_alloc();
+    view_set_context(app->echo_menu, app);
+    view_allocate_model(app->echo_menu, ViewModelTypeLocking, sizeof(EchoMenuModel));
+    with_view_model(
+        app->echo_menu,
+        EchoMenuModel * model,
+        { model->selected = app->loader_menu->selected_echo; },
+        false);
+    view_set_draw_callback(app->echo_menu, loader_menu_echo_draw);
+    view_set_input_callback(app->echo_menu, loader_menu_echo_input);
 }
 
 static void loader_menu_back(void* context) {
     LoaderMenuApp* app = context;
     if(app->loader_menu->current_view != LoaderMenuViewPrimary &&
        !app->loader_menu->settings_only) {
-        furi_timer_pending_callback(
-            loader_menu_set_view_pending, app, (uint32_t)menu_get_view(app->echo_menu));
+        furi_timer_pending_callback(loader_menu_set_view_pending, app, (uint32_t)app->echo_menu);
         app->loader_menu->current_view = LoaderMenuViewPrimary;
     } else {
         furi_thread_flags_set(furi_thread_get_id(app->loader_menu->thread), 0);
@@ -409,7 +461,6 @@ static LoaderMenuApp* loader_menu_app_alloc(LoaderMenu* loader_menu) {
     if(!app->loader_menu->settings_only) {
         app->primary_menu = menu_alloc();
         loader_menu_build_menu(app, loader_menu);
-        app->echo_menu = menu_alloc();
         loader_menu_build_echo(app);
     }
 
@@ -421,7 +472,7 @@ static LoaderMenuApp* loader_menu_app_alloc(LoaderMenu* loader_menu) {
                      submenu_get_view(app->settings_menu) :
                  app->loader_menu->current_view == LoaderMenuViewTools ?
                      menu_get_view(app->primary_menu) :
-                     menu_get_view(app->echo_menu);
+                     app->echo_menu;
     view_holder_set_view(app->loader_menu->loader->view_holder, view);
     view_holder_set_back_callback(app->loader_menu->loader->view_holder, loader_menu_back, app);
 
@@ -435,8 +486,12 @@ static void loader_menu_app_free(LoaderMenuApp* app) {
         loading_get_view(app->loader_menu->loader->loading));
 
     if(!app->loader_menu->settings_only) {
-        app->loader_menu->selected_echo = menu_get_selected_item(app->echo_menu);
-        menu_free(app->echo_menu);
+        with_view_model(
+            app->echo_menu,
+            EchoMenuModel * model,
+            { app->loader_menu->selected_echo = model->selected; },
+            false);
+        view_free(app->echo_menu);
         app->loader_menu->selected_primary = menu_get_selected_item(app->primary_menu);
         menu_free(app->primary_menu);
         for

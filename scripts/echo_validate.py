@@ -37,14 +37,11 @@ def main():
             im = Image.open(anim / f"frame_{index}.png")
             assert im.mode == "1" and im.size == (width, height)
             data = (
-                Path(temporary)
-                / f"Echo/Anims/Echo_Pulse_128x51/frame_{index}.bm"
+                Path(temporary) / f"Echo/Anims/Echo_Pulse_128x51/frame_{index}.bm"
             ).read_bytes()
             if data[0] == 1:
                 assert len(data) == 4 + int.from_bytes(data[2:4], "little")
-                raw = heatshrink2.decompress(
-                    data[4:], window_sz2=8, lookahead_sz2=4
-                )
+                raw = heatshrink2.decompress(data[4:], window_sz2=8, lookahead_sz2=4)
             else:
                 assert data[0] == 0
                 raw = data[1:]
@@ -57,11 +54,9 @@ def main():
     api = (ROOT / "targets/f7/api_symbols.csv").read_text().splitlines()
     assert api[1] == "Version,+,87.1,,"
     icons = [line for line in api if ",I_Echo" in line]
-    assert len(icons) == 5 and all(
-        line.startswith("Variable,-,") for line in icons
-    )
+    assert len(icons) == 5 and all(line.startswith("Variable,-,") for line in icons)
     for icon in (ROOT / "assets/icons/Echo").glob("*.png"):
-        assert Image.open(icon).size == (14, 14)
+        assert Image.open(icon).size == (10, 10)
     # Modern Git adds filter metadata to fetch lines in partial clones.
     responses = [
         "feature/echo-identity",
@@ -69,9 +64,7 @@ def main():
         "origin\thttps://example.test/echo.git (fetch) [blob:none]\norigin\thttps://example.test/echo.git (push)",
     ]
     with patch.object(GitVersion, "_exec_git", side_effect=responses):
-        assert GitVersion(ROOT)._get_git_origins() == {
-            "https://example.test/echo.git"
-        }
+        assert GitVersion(ROOT)._get_git_origins() == {"https://example.test/echo.git"}
     print(
         "PASS: animation frame order, packed pixel round-trip, private icons/API 87.1, partial-clone origin"
     )

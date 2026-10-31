@@ -70,30 +70,28 @@ def main():
         "Min level: 1\nMax level: 30\nWeight: 1\n"
     )
     for name in ("Radio", "Remotes", "Sessions", "Tools", "Settings"):
-        im = Image.new("1", (14, 14), 1)
+        im = Image.new("1", (10, 10), 1)
         d = ImageDraw.Draw(im)
         if name == "Radio":
-            pulse(d, 6, 7, 6)
+            pulse(d, 4, 5, 4)
         elif name == "Remotes":
-            d.rounded_rectangle((3, 1, 10, 12), radius=2, outline=0)
-            d.rectangle((5, 3, 8, 4), fill=0)
-            for x, y in ((5, 7), (8, 7), (5, 10), (8, 10)):
+            d.rounded_rectangle((2, 0, 7, 9), radius=1, outline=0)
+            d.line((4, 2, 5, 2), fill=0)
+            for x, y in ((4, 5), (6, 5), (4, 7), (6, 7)):
                 d.point((x, y), fill=0)
         elif name == "Sessions":
-            d.line(
-                [(1, 11), (1, 3), (5, 3), (7, 5), (12, 5), (12, 11), (1, 11)],
-                fill=0,
-            )
-            d.line((3, 8, 10, 8), fill=0)
+            d.line([(0, 8), (0, 2), (3, 2), (5, 4), (9, 4), (9, 8), (0, 8)], fill=0)
+            d.line((2, 6, 7, 6), fill=0)
         elif name == "Tools":
-            d.line((2, 2, 11, 11), fill=0, width=2)
-            d.line((2, 11, 11, 2), fill=0, width=2)
-            d.rectangle((1, 1, 3, 3), outline=0)
+            d.line((1, 1, 8, 8), fill=0)
+            d.line((1, 8, 8, 1), fill=0)
+            d.rectangle((0, 0, 2, 2), outline=0)
+            d.line((6, 0, 9, 3), fill=0)
         else:
-            for y, x in ((3, 4), (7, 9), (11, 5)):
-                d.line((1, y, 12, y), fill=0)
+            for y, x in ((1, 3), (5, 7), (8, 4)):
+                d.line((0, y, 9, y), fill=0)
                 d.rectangle((x - 1, y - 1, x + 1, y + 1), fill=1, outline=0)
-        save(im, ROOT / f"assets/icons/Echo/Echo{name}_14.png")
+        save(im, ROOT / f"assets/icons/Echo/Echo{name}_10.png")
     icon = Image.new("1", (10, 10), 1)
     pulse(ImageDraw.Draw(icon), 4, 5, 4)
     save(icon, ROOT / "documentation/echo/echo-radio-10.png")

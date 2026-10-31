@@ -14,7 +14,9 @@ The main launcher has five entries:
 - **Tools** opens the full original app menu, including Applications and core tools.
 - **Settings** opens the system settings menu.
 
-Back from Tools or Settings returns to the Echo launcher. The existing full menu
+The launcher shows an ECHO header and all five rows with small icons at once.
+Up/Down wraps; short OK opens the selection. Back from Tools or Settings returns
+to the Echo launcher. The existing full menu
 configuration is retained for Tools. Echo Radio keeps the `marauder_studio` app ID
 and `/ext/apps_data/marauder` storage so saved files and preferences continue to
 work. The separate original Marauder companion is retained.
@@ -32,6 +34,7 @@ exported API unchanged. Build with the pinned toolchain (39):
 ```sh
 FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage SKIP_EXTERNAL=1
 python3 scripts/echo_validate.py
+python3 scripts/echo_menu_test.py
 ```
 
 Source dependencies must already be initialized recursively. `updater_minpackage`
