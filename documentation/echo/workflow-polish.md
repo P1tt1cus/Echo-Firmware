@@ -23,8 +23,8 @@ claims. Do not label an unperformed physical test as passed.
 | 4 | Sub-GHz: operating status, duplicates, RAW/errors, Replay Bench lifecycle | Implemented; host/build/CI and limited device UI pass; physical tests pending |
 | 5 | BLE: pairing/connection/HID readiness, interrupted pairing and disconnect cancellation | Implemented; host/build and device UI pass; paired-host tests pending |
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/build and device UI pass; physical IR tests pending |
-| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | IR parsing/error cleanup and shared name validation implemented; Sub-GHz RAW and save/rename failure handling pending |
-| 8 | Cross-app contextual actions and measured performance review | Pending |
+| 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Browser/name/RAW and RFID/NFC/Sub-GHz/IR save fixes implemented; sanitizer/build/CI and synthetic app file checks pass; shared-core device regression pending |
+| 8 | Cross-app contextual actions and measured performance review | IR reorder Pick/Save/Cancel fixed and device-verified; IR buffer allocation measurement recorded; final cross-app review pending |
 | 9 | Full regression, install/hash checks, physical validation, passing fork PR | Pending |
 
 ## Baseline
@@ -547,3 +547,25 @@ not in source. Never commit captures, credential data or pairing secrets.
   input/render code with real containers under ASAN/UBSAN: empty/long lists,
   both wrap boundaries, cancellation permutations, unlocked callbacks and 100
   cycles. Device reorder/save/cancel verification follows the rebuilt IR FAP.
+
+- IR 1.5 source `6e1c0c272` installed, local/device MD5
+  `62ec6cd07b19a3603f40eb33bffa39b3`. Reorder's first→last preview showed
+  Volume_RAW_test, Third_test, Power_test. Back restored the original order
+  and unchanged MD5 `566e93349264f56b6566c1705c4652e6`. Repeating the move
+  and pressing OK saved that insertion order. The 331-byte USB readback matched
+  every original parsed/RAW field; only ordering/serialization changed, MD5
+  `9a096c7f0ba2328532e921431145453f`. Reopening showed that saved order and
+  RAW 38 kHz / 4 samples. All synthetic remote/staging siblings removed; loader
+  idle confirmed. No IR transmission or physical learned capture occurred.
+- Startup observation: the first direct launch after installing 1.5, followed by
+  Up before an initial screen capture, returned a completely blank RPC frame; a
+  second snapshot was also blank. Loader still reported Infrared running, USB
+  responded and Back exited normally. Two subsequent direct opens displayed
+  correctly, and all one-input reorder/save/cancel checks passed. Root cause is
+  unconfirmed; retain this alongside the earlier grouped-input navigation issue
+  for final startup regression. This was not a confirmed frozen device.
+- CI `f99bbb252` passed firmware `41234906082` / lint `41234905813`;
+  CI `6e1c0c272` passed firmware `41235179188` / lint `41235179174`.
+  Next: complete cross-app contextual/performance review, build/install the
+  combined firmware-only core, then full navigation/browser/RAW regression and
+  precisely document the remaining physical fixture/paired-host dependencies.
