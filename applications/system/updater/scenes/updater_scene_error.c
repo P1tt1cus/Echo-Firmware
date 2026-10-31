@@ -22,7 +22,7 @@ void updater_scene_error_on_enter(void* context) {
         updater->widget, GuiButtonTypeLeft, "Exit", updater_scene_error_callback, updater);
 
     widget_add_string_multiline_element(
-        updater->widget, 64, 13, AlignCenter, AlignCenter, FontPrimary, "Error");
+        updater->widget, 64, 13, AlignCenter, AlignCenter, FontPrimary, "Echo update error");
 
     widget_add_string_multiline_element(
         updater->widget,

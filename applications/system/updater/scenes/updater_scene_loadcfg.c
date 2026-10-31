@@ -25,7 +25,14 @@ void updater_scene_loadcfg_on_enter(void* context) {
 
     if(update_manifest_init(loaded_manifest, furi_string_get_cstr(updater->startup_arg))) {
         widget_add_string_element(
-            updater->widget, 64, 12, AlignCenter, AlignCenter, FontPrimary, "Update");
+            updater->widget,
+            64,
+            12,
+            AlignCenter,
+            AlignCenter,
+            FontPrimary,
+            furi_string_start_with_str(loaded_manifest->version, "Echo ") ? "Install Echo" :
+                                                                            "Install firmware");
 
         widget_add_text_box_element(
             updater->widget,

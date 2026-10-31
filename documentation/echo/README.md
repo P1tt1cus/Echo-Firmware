@@ -1,4 +1,4 @@
-# Echo 1.0
+# Echo 1.1
 
 Echo is the personal firmware identity for this maintained Momentum fork. The
 visible device name is **Echo**, without an owner name or edition suffix.
@@ -86,3 +86,52 @@ Keep its companion copy at `studio/echo_dashboard.h` identical when changing
 the shared renderer. Both repositories exercise the real header with sanitizer
 tests for navigation, bounds, action IDs, locked actions and model locking.
 App structure fields and view IDs are appended to preserve existing offsets.
+
+## Shared menus (Echo 1.1)
+
+Echo styling now lives in the firmware's shared Submenu and VariableItemList
+controls. Existing API 87.1 FAPs inherit it without rebuilding: built-in tools,
+settings, nested menus and third-party apps using those controls. The Compact
+Tools launcher also uses the Echo layout; other launcher styles stay available.
+Screens that draw their own UI (games, file browsers, keyboards and live tools)
+retain their app-specific controls. This is a shared menu update, not a rewrite
+of every third-party renderer.
+
+Menus show a title, selection count, four rows, a scrollbar and a footer.
+Portrait submenus fit ten rows. Caller-provided headers take priority; other
+titles come from the allocating app thread. Submenus add small action icons and
+hints for recognised actions. Settings retain their values, Left/Right changes,
+locked-item explanations, scrolling labels and existing callbacks. Extended
+OK events remain available to apps that register them. Tools uses Left/Right
+to jump to first/last. Empty/reset lists and selection removal are handled safely.
+
+The implementation is private to GUI; API 87.1 and public signatures are
+unchanged. Run `python3 scripts/echo_shared_menu_test.py` (actual production
+controls, real m-array, sanitizer host adapter), existing Echo checks and
+`firmware_all updater_minpackage SKIP_EXTERNAL=1`. Install the firmware-only
+package and preserve SD resources, settings and FAPs. Verify representative
+settings, built-in and unmodified third-party app menus on the device.
+
+## Echo installer
+
+The update confirmation displays **Install Echo / Echo 1.1**. During installation,
+the private code-drawn pulse and ECHO wordmark accompany real overall progress,
+a plain-language stage and a restart screen. Error screens retain the exact
+diagnostic and stage code, short-OK retry and long-Back exit. Flash validation,
+backup/restore, power controls and recovery logic are unchanged.
+
+Default artifacts use `echo-1.1-<commit>`; the visible manifest Info is simply
+`Echo 1.1`. The package-version argument is quoted so its space survives SCons.
+Source commit/branch remain in device diagnostics. When bumping the version,
+update `scripts/version.py`, `fbt_options.py`, the default in
+`site_scons/commandline.scons`, and the installer identity assertions together.
+
+Run `python3 scripts/echo_installer_test.py --package-check` after the firmware
+and updater build. It checks the production renderer at every progress value,
+restarts, SD wait, diagnostics and generated package identity. The renderer
+can also be included in a temporary preview FAP for on-device visual checks;
+remove the preview afterward. RPC is unavailable during the RAM flasher, so
+distinguish preview screenshots from actual install completion evidence.
+
+The updater restarts between backup, flashing and restore. Its restart screen
+says **Restarting Echo**, never declares completion before the desktop returns.

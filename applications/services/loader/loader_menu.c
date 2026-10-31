@@ -442,6 +442,7 @@ static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
 }
 
 static void loader_menu_build_submenu(LoaderMenuApp* app, LoaderMenu* loader_menu) {
+    submenu_set_header(app->settings_menu, "Settings");
     for(size_t i = 0; i < FLIPPER_SETTINGS_APPS_COUNT; i++) {
         submenu_add_item_ex(
             app->settings_menu,

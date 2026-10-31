@@ -41,7 +41,7 @@ class GitVersion:
             or "unknown"
         )
 
-        version = "echo-1.0"
+        version = "echo-1.1"
 
         if "SOURCE_DATE_EPOCH" in os.environ:
             commit_date = datetime.utcfromtimestamp(

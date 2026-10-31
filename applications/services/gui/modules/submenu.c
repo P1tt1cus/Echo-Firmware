@@ -1,4 +1,5 @@
 #include "submenu.h"
+#include "echo_menu.h"
 
 #include <assets_icons.h>
 #include <gui/elements.h>
@@ -68,6 +69,7 @@ ARRAY_DEF(
 typedef struct {
     SubmenuItemArray_t items;
     FuriString* header;
+    FuriString* title;
     size_t position;
     size_t window_position;
 
@@ -80,74 +82,66 @@ static void submenu_process_down(Submenu* submenu);
 static void submenu_process_ok(Submenu* submenu, InputType input_type);
 
 static size_t submenu_items_on_screen(SubmenuModel* model) {
-    size_t res = (model->is_vertical) ? 8 : 4;
-    return (furi_string_empty(model->header)) ? res : res - 1;
+    return model->is_vertical ? 10 : 4;
+}
+
+static void submenu_normalize(SubmenuModel* model) {
+    const size_t count = SubmenuItemArray_size(model->items);
+    const size_t rows = submenu_items_on_screen(model);
+    if(!count) {
+        model->position = model->window_position = 0;
+        model->locked_message_visible = false;
+        return;
+    }
+    if(model->position >= count) model->position = count - 1;
+    if(model->window_position > model->position) model->window_position = model->position;
+    if(model->position >= model->window_position + rows)
+        model->window_position = model->position - rows + 1;
+    if(count <= rows)
+        model->window_position = 0;
+    else if(model->window_position > count - rows)
+        model->window_position = count - rows;
 }
 
 static void submenu_view_draw_callback(Canvas* canvas, void* _model) {
     SubmenuModel* model = _model;
+    submenu_normalize(model);
 
-    const uint8_t item_height = 16;
-    uint8_t item_width = canvas_width(canvas) - 5;
-
+    const size_t count = SubmenuItemArray_size(model->items);
+    const size_t rows = submenu_items_on_screen(model);
+    const int width = canvas_width(canvas);
     canvas_clear(canvas);
-
-    if(!furi_string_empty(model->header)) {
-        canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str(canvas, 4, 11, furi_string_get_cstr(model->header));
-    }
-
-    canvas_set_font(canvas, FontSecondary);
-
-    size_t position = 0;
-    SubmenuItemArray_it_t it;
-    for(SubmenuItemArray_it(it, model->items); !SubmenuItemArray_end_p(it);
-        SubmenuItemArray_next(it)) {
-        const size_t item_position = position - model->window_position;
-        const size_t items_on_screen = submenu_items_on_screen(model);
-        uint8_t y_offset = furi_string_empty(model->header) ? 0 : item_height;
-        bool is_locked = SubmenuItemArray_cref(it)->locked;
-
-        if(item_position < items_on_screen) {
-            if(position == model->position) {
-                canvas_set_color(canvas, ColorBlack);
-                elements_slightly_rounded_box(
-                    canvas,
-                    0,
-                    y_offset + (item_position * item_height) + 1,
-                    item_width,
-                    item_height - 2);
-                canvas_set_color(canvas, ColorWhite);
-            } else {
-                canvas_set_color(canvas, ColorBlack);
-            }
-
-            if(is_locked) {
-                canvas_draw_icon(
-                    canvas,
-                    item_width - 10,
-                    y_offset + (item_position * item_height) + item_height - 12,
-                    &I_Lock_7x8);
-            }
-
-            FuriString* disp_str = furi_string_alloc_set(SubmenuItemArray_cref(it)->label);
-            elements_string_fit_width(canvas, disp_str, item_width - (is_locked ? 21 : 11));
-
-            canvas_draw_str(
-                canvas,
-                6,
-                y_offset + (item_position * item_height) + item_height - 4,
-                furi_string_get_cstr(disp_str));
-
-            furi_string_free(disp_str);
+    echo_menu_header(
+        canvas,
+        furi_string_get_cstr(furi_string_empty(model->header) ? model->title : model->header),
+        model->position,
+        count);
+    for(size_t row = 0; row < rows && model->window_position + row < count; ++row) {
+        size_t position = model->window_position + row;
+        const SubmenuItem* item = SubmenuItemArray_cget(model->items, position);
+        const int y = 14 + row * 10;
+        if(position == model->position) {
+            canvas_draw_rbox(canvas, 1, y, width - 6, 10, 2);
+            canvas_set_color(canvas, ColorWhite);
         }
-
-        position++;
+        echo_menu_icon(canvas, 4, y + 1, furi_string_get_cstr(item->label));
+        echo_menu_fit(
+            canvas, 16, y + 8, width - (item->locked ? 34 : 23), furi_string_get_cstr(item->label));
+        if(item->locked) canvas_draw_icon(canvas, width - 15, y + 1, &I_Lock_7x8);
+        canvas_set_color(canvas, ColorBlack);
     }
-
-    elements_scrollbar(canvas, model->position, SubmenuItemArray_size(model->items));
+    echo_menu_scrollbar(canvas, model->position, count, rows);
+    const char* hint = "No items";
+    if(model->position < count) {
+        const SubmenuItem* item = SubmenuItemArray_cget(model->items, model->position);
+        hint = item->locked              ? "OK: why locked" :
+               item->has_extended_events ? "OK: app controls" :
+                                           echo_menu_hint(furi_string_get_cstr(item->label));
+    }
+    echo_menu_footer(canvas, hint);
 
     if(model->locked_message_visible) {
+        canvas_set_font(canvas, FontSecondary);
         const uint8_t frame_x = 7;
         const uint8_t frame_width = canvas_width(canvas) - frame_x * 2;
         const uint8_t frame_y = 7;
@@ -244,6 +238,7 @@ Submenu* submenu_alloc(void) {
             model->position = 0;
             model->window_position = 0;
             model->header = furi_string_alloc();
+            model->title = echo_menu_title();
         },
         true);
 
@@ -258,6 +253,7 @@ void submenu_free(Submenu* submenu) {
         SubmenuModel * model,
         {
             furi_string_free(model->header);
+            furi_string_free(model->title);
             SubmenuItemArray_clear(model->items);
         },
         true);
@@ -370,6 +366,8 @@ void submenu_remove_item(Submenu* submenu, uint32_t index) {
                 SubmenuItemArray_next(it)) {
                 if(index == SubmenuItemArray_cref(it)->index) {
                     SubmenuItemArray_remove(model->items, it);
+                    model->locked_message_visible = false;
+                    submenu_normalize(model);
                     break;
                 }
             }
@@ -389,6 +387,7 @@ void submenu_reset(Submenu* submenu) {
             model->position = 0;
             model->window_position = 0;
             model->is_vertical = false;
+            model->locked_message_visible = false;
             furi_string_reset(model->header);
         },
         true);
@@ -464,7 +463,9 @@ void submenu_process_up(Submenu* submenu) {
             const size_t items_on_screen = submenu_items_on_screen(model);
             const size_t items_size = SubmenuItemArray_size(model->items);
 
-            if(model->position > 0) {
+            if(!items_size) {
+                model->position = model->window_position = 0;
+            } else if(model->position > 0) {
                 model->position--;
                 if((model->position == model->window_position) && (model->window_position > 0)) {
                     model->window_position--;
@@ -487,7 +488,9 @@ void submenu_process_down(Submenu* submenu) {
             const size_t items_on_screen = submenu_items_on_screen(model);
             const size_t items_size = SubmenuItemArray_size(model->items);
 
-            if(model->position < items_size - 1) {
+            if(!items_size) {
+                model->position = model->window_position = 0;
+            } else if(model->position < items_size - 1) {
                 model->position++;
                 if((model->position - model->window_position > items_on_screen - 2) &&
                    (model->window_position < items_size - items_on_screen)) {

@@ -1,4 +1,5 @@
 #include "variable_item_list.h"
+#include "echo_menu.h"
 #include <gui/elements.h>
 #include <gui/canvas.h>
 #include <furi.h>
@@ -36,6 +37,7 @@ typedef struct {
     uint8_t window_position;
 
     FuriString* header;
+    FuriString* title;
     size_t scroll_counter;
     bool locked_message_visible;
 } VariableItemListModel;
@@ -47,22 +49,23 @@ static void variable_item_list_process_right(VariableItemList* variable_item_lis
 static void variable_item_list_process_ok(VariableItemList* variable_item_list);
 
 static size_t variable_item_list_items_on_screen(VariableItemListModel* model) {
-    size_t res = 4;
-    return (furi_string_empty(model->header)) ? res : res - 1;
+    UNUSED(model);
+    return 4;
 }
 
 static void variable_item_list_draw_callback(Canvas* canvas, void* _model) {
     VariableItemListModel* model = _model;
 
-    const uint8_t item_height = 16;
+    const uint8_t item_height = 10;
     uint8_t item_width = canvas_width(canvas) - 5;
 
     canvas_clear(canvas);
 
-    if(!furi_string_empty(model->header)) {
-        canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str(canvas, 4, 11, furi_string_get_cstr(model->header));
-    }
+    echo_menu_header(
+        canvas,
+        furi_string_get_cstr(furi_string_empty(model->header) ? model->title : model->header),
+        model->position,
+        VariableItemArray_size(model->items));
 
     uint8_t position = 0;
     VariableItemArray_it_t it;
@@ -72,17 +75,17 @@ static void variable_item_list_draw_callback(Canvas* canvas, void* _model) {
         VariableItemArray_next(it)) {
         uint8_t item_position = position - model->window_position;
         uint8_t items_on_screen = variable_item_list_items_on_screen(model);
-        uint8_t y_offset = furi_string_empty(model->header) ? 0 : item_height;
+        uint8_t y_offset = 14;
 
         if(item_position < items_on_screen) {
             const VariableItem* item = VariableItemArray_cref(it);
             uint8_t item_y = y_offset + (item_position * item_height);
-            uint8_t item_text_y = item_y + item_height - 4;
+            uint8_t item_text_y = item_y + 8;
             size_t scroll_counter = 0;
 
             if(position == model->position) {
                 canvas_set_color(canvas, ColorBlack);
-                elements_slightly_rounded_box(canvas, 0, item_y + 1, item_width, item_height - 2);
+                canvas_draw_rbox(canvas, 1, item_y, item_width - 1, item_height, 2);
                 canvas_set_color(canvas, ColorWhite);
                 scroll_counter = model->scroll_counter;
                 if(scroll_counter < 1) { // Show text beginning a little longer
@@ -135,7 +138,8 @@ static void variable_item_list_draw_callback(Canvas* canvas, void* _model) {
                     false,
                     true);
 
-                if(item->current_value_index < (item->values_count - 1)) {
+                if(item->values_count > 1 &&
+                   item->current_value_index < (item->values_count - 1)) {
                     canvas_draw_str(canvas, 115, item_text_y, ">");
                 }
             }
@@ -144,9 +148,18 @@ static void variable_item_list_draw_callback(Canvas* canvas, void* _model) {
         position++;
     }
 
-    elements_scrollbar(canvas, model->position, VariableItemArray_size(model->items));
+    echo_menu_scrollbar(canvas, model->position, VariableItemArray_size(model->items), 4);
+    const char* hint = "No items";
+    if(model->position < VariableItemArray_size(model->items)) {
+        const VariableItem* item = VariableItemArray_cget(model->items, model->position);
+        hint = item->locked           ? "OK: why locked" :
+               item->values_count > 1 ? "Left/Right: change" :
+                                        echo_menu_hint(furi_string_get_cstr(item->label));
+    }
+    echo_menu_footer(canvas, hint);
 
     if(model->locked_message_visible) {
+        canvas_set_font(canvas, FontSecondary);
         if(momentum_settings.popup_overlay) {
             canvas_draw_overlay(canvas);
         }
@@ -300,7 +313,9 @@ void variable_item_list_process_up(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             uint8_t items_on_screen = variable_item_list_items_on_screen(model);
-            if(model->position > 0) {
+            if(!VariableItemArray_size(model->items)) {
+                model->position = model->window_position = 0;
+            } else if(model->position > 0) {
                 model->position--;
 
                 if((model->position == model->window_position) && (model->window_position > 0)) {
@@ -323,7 +338,9 @@ void variable_item_list_process_down(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             uint8_t items_on_screen = variable_item_list_items_on_screen(model);
-            if(model->position < (VariableItemArray_size(model->items) - 1)) {
+            if(!VariableItemArray_size(model->items)) {
+                model->position = model->window_position = 0;
+            } else if(model->position < (VariableItemArray_size(model->items) - 1)) {
                 model->position++;
                 if((model->position - model->window_position) > (items_on_screen - 2) &&
                    model->window_position <
@@ -341,6 +358,7 @@ void variable_item_list_process_down(VariableItemList* variable_item_list) {
 
 VariableItem* variable_item_list_get_selected_item(VariableItemListModel* model) {
     VariableItem* item = NULL;
+    if(model->position >= VariableItemArray_size(model->items)) return NULL;
 
     VariableItemArray_it_t it;
     uint8_t position = 0;
@@ -364,7 +382,9 @@ void variable_item_list_process_left(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             VariableItem* item = variable_item_list_get_selected_item(model);
-            if(item->locked) {
+            if(!item) {
+                /* Empty lists have no action. */
+            } else if(item->locked) {
                 model->locked_message_visible = true;
                 furi_timer_start(
                     variable_item_list->locked_timer, furi_kernel_get_tick_frequency() * 3);
@@ -385,11 +405,13 @@ void variable_item_list_process_right(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             VariableItem* item = variable_item_list_get_selected_item(model);
-            if(item->locked) {
+            if(!item) {
+                /* Empty lists have no action. */
+            } else if(item->locked) {
                 model->locked_message_visible = true;
                 furi_timer_start(
                     variable_item_list->locked_timer, furi_kernel_get_tick_frequency() * 3);
-            } else if(item->current_value_index < (item->values_count - 1)) {
+            } else if(item->values_count > 1 && item->current_value_index < (item->values_count - 1)) {
                 item->current_value_index++;
                 model->scroll_counter = 0;
                 if(item->change_callback) {
@@ -406,7 +428,9 @@ void variable_item_list_process_ok(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             VariableItem* item = variable_item_list_get_selected_item(model);
-            if(item->locked) {
+            if(!item) {
+                /* Empty lists have no action. */
+            } else if(item->locked) {
                 model->locked_message_visible = true;
                 furi_timer_start(
                     variable_item_list->locked_timer, furi_kernel_get_tick_frequency() * 3);
@@ -458,6 +482,7 @@ VariableItemList* variable_item_list_alloc(void) {
             model->position = 0;
             model->window_position = 0;
             model->header = furi_string_alloc();
+            model->title = echo_menu_title();
             model->scroll_counter = 0;
         },
         true);
@@ -476,6 +501,7 @@ void variable_item_list_free(VariableItemList* variable_item_list) {
         VariableItemListModel * model,
         {
             furi_string_free(model->header);
+            furi_string_free(model->title);
             VariableItemArray_it_t it;
             for(VariableItemArray_it(it, model->items); !VariableItemArray_end_p(it);
                 VariableItemArray_next(it)) {
@@ -509,6 +535,9 @@ void variable_item_list_reset(VariableItemList* variable_item_list) {
                 furi_string_free(VariableItemArray_ref(it)->locked_message);
             }
             VariableItemArray_reset(model->items);
+            model->position = model->window_position = 0;
+            model->scroll_counter = 0;
+            model->locked_message_visible = false;
             furi_string_reset(model->header);
         },
         false);
