@@ -25,7 +25,7 @@ claims. Do not label an unperformed physical test as passed.
 | 6 | IR: press/hold/repeat, remote navigation, parsed/RAW identification | Implemented; host/CI, navigation and synthetic save/reorder/readback pass; appliance checks listed below |
 | 7 | Files: selection restoration, long folders, naming/overwrite/corrupt-file feedback | Implemented; fault-injection tests and installed browser/file checks pass; power-loss/SD hardware faults unverified |
 | 8 | Cross-app contextual actions and measured performance review | Implemented; contextual review and IR/Sub-GHz memory measurements recorded |
-| 9 | Full regression, install/hash checks, physical validation, passing fork PR | Core/apps installed and hash-verified; final startup/exit regression and CI pass; fork merge pending |
+| 9 | Full regression, install/hash checks, physical validation, passing fork PR | Core/apps installed and hash-verified; startup/exit regression and CI pass; physical dependencies documented; integration tracked in fork PR #6 |
 
 ## Baseline
 
@@ -671,3 +671,9 @@ made by these changes. SD hardware removal/failure, power-loss recovery, sustain
 RF/DMA timing and exhaustive third-party compatibility are also unverified.
 Staged writes protect ordinary detected I/O failures but are not power-loss-atomic.
 The existing API does not expose detailed late RAW TX worker errors to its TX UI.
+
+Final integrity audit: all seven installed native FAP hashes match the local
+manifest. Of 15 files recorded before the core update, only the three intended
+Sub-GHz FAP replacements changed; settings/name/other app hashes match. Final
+`device_info` reports clean `ae48bb3f`, Echo 1.1 and AU; loader is idle. Integration
+and final CI status are recorded in [fork PR #6](https://github.com/P1tt1cus/Echo-Firmware/pull/6).
