@@ -443,3 +443,40 @@ not in source. Never commit captures, credential data or pairing secrets.
 - `bd022a3b2` CI passed: firmware `41232718060`, lint `41232718061`.
   Next: Sub-GHz checked writes/overwrite/rename failure paths, remaining saved-file
   audit, combined core install and final navigation/performance/physical checks.
+
+
+### Stage 7 — Sub-GHz save results, retry and rename
+
+- Signal saves now check complete stream reads/writes, sync and close, then commit
+  through the staged-save helper. New/manual/autosave files reject collisions;
+  dynamic-protocol updates may replace only their specified destination while
+  retaining/restoring the previous file on commit failure. Errors no longer infer
+  success from a file merely existing. Transient Repeat removal uses a private
+  serialized copy, preserving capture bytes/cursor. This adds temporary memory
+  proportional to decoded serialized data; RAW recordings use file rename.
+- Save Name builds its destination separately: failures keep the input/folder for
+  retry instead of appending another filename. Rename rejects collisions, checks
+  same-name existence, preserves bytes, and keeps the renamed file selected in
+  the browser. Back restores the original path; empty input stays in the editor.
+- Receiver autosave failures latch a flag instead of opening a dialog on the radio
+  worker. A UI tick stops/joins reception, reports that the signal remains in
+  history, then resumes reception. TX-stop releases the radio/speaker before a
+  dynamic save callback can block on storage or failure feedback. RF/reconnect
+  behavior under real storage failure still requires physical validation.
+- Saving a decoded RAW signal now clears its released worker pointer. The new
+  app-exit cleanup previously made this missed scene cleanup a double-free risk;
+  the regression test covers duplicate save-success events and NULL teardown.
+- `echo_subghz_save_test.py`: PASS ASAN/UBSAN, production save/rename/writer/scene
+  code with storage adapters. Includes short and multi-chunk writes, read/sync/
+  close errors, collisions, preserved captures/cursors, Repeat filtering, retries,
+  selection, autosave dialog ordering, RAW cleanup and 100 ownership cycles.
+  A separately compiled SUBGHZ_ADD_MANUALLY test covers its distinct save branch.
+  Existing Sub-GHz control/history/RAW-file and Replay Bench suites pass; TX tests
+  now require radio/speaker cleanup before the dynamic save callback.
+- The standalone Add Manually app was omitted by SKIP_EXTERNAL=1. It is now an
+  explicit Sub-GHz dependency, API87.1 build target and CI artifact. Deploy its
+  1.1 FAP at `/ext/apps/assets/subghz_add_manually.fap` along with Sub-GHz 1.4.
+  Core/updater, main app, Add Manually and Replay Bench builds pass.
+- Remaining saved-file audit: IR batch edits stage a file but use an overwrite
+  rename that deletes the original destination first; IR rename also treats
+  FSE_EXIST as success. Fix these before the combined core/file regression.

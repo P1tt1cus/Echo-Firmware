@@ -17,7 +17,7 @@ jobs:
       - name: Verify pinned API
         run: test "$(sed -n '2p' targets/f7/api_symbols.csv)" = 'Version,+,87.1,,'
       - name: Build Echo firmware and firmware-only update
-        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay fap_lfrfid fap_bad_kb SKIP_EXTERNAL=1
+        run: FBT_NO_SYNC=1 ./fbt -j4 firmware_all updater_minpackage fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay fap_lfrfid fap_bad_kb fap_subghz_add_manually SKIP_EXTERNAL=1
       - name: Check Echo assets and version metadata
         run: |
           . scripts/toolchain/fbtenv.sh
@@ -33,6 +33,7 @@ jobs:
           python3 scripts/echo_subghz_history_test.py
           python3 scripts/echo_subghz_control_test.py
           python3 scripts/echo_subghz_file_test.py
+          python3 scripts/echo_subghz_save_test.py
           python3 scripts/echo_hid_control_test.py
           python3 scripts/echo_hid_view_test.py
           python3 scripts/echo_hid_profile_test.py
@@ -52,6 +53,7 @@ jobs:
             build/f7-firmware-C/.extapps/infrared.fap
             build/f7-firmware-C/.extapps/nfc.fap
             build/f7-firmware-C/.extapps/subghz.fap
+            build/f7-firmware-C/.extapps/subghz_add_manually.fap
             build/f7-firmware-C/.extapps/momentum_app.fap
             build/f7-firmware-C/.extapps/echo_replay.fap
             build/f7-firmware-C/.extapps/lfrfid.fap

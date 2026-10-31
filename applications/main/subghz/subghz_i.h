@@ -86,6 +86,7 @@ struct SubGhz {
     SubGhzProtocolFlag filter;
     SubGhzProtocolFilter ignore_filter;
     bool remove_duplicates;
+    volatile bool autosave_failed;
     FuriString* error_str;
     SubGhzLock lock;
 
@@ -122,13 +123,20 @@ void subghz_dialog_message_freq_error(SubGhz* subghz, SubGhzTx can_tx);
 
 bool subghz_key_load(SubGhz* subghz, const char* file_path, bool show_dialog);
 bool subghz_get_next_name_file(SubGhz* subghz, uint8_t max_len);
+typedef enum {
+    SubGhzSaveNew,
+    SubGhzSaveUpdate,
+    SubGhzSaveAutosave,
+} SubGhzSaveMode;
+
 bool subghz_save_protocol_to_file(
     SubGhz* subghz,
     FlipperFormat* flipper_format,
-    const char* dev_file_name);
+    const char* dev_file_name,
+    SubGhzSaveMode mode);
 void subghz_save_to_file(void* context);
 bool subghz_load_protocol_from_file(SubGhz* subghz);
-bool subghz_rename_file(SubGhz* subghz);
+bool subghz_rename_file(SubGhz* subghz, const char* destination);
 bool subghz_file_available(SubGhz* subghz);
 bool subghz_delete_file(SubGhz* subghz);
 void subghz_file_name_clear(SubGhz* subghz);

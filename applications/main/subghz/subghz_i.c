@@ -1,4 +1,5 @@
 #include "subghz_i.h"
+#include "../echo/echo_file_save.h"
 
 #include "assets_icons.h"
 #include "subghz/types.h"
@@ -329,45 +330,93 @@ bool subghz_get_next_name_file(SubGhz* subghz, uint8_t max_len) {
     return res;
 }
 
+typedef struct {
+    Storage* storage;
+    Stream* source;
+} SubGhzFileWrite;
+
+static bool subghz_write_signal_file(const char* path, void* context) {
+    SubGhzFileWrite* write = context;
+    File* file = storage_file_alloc(write->storage);
+    bool result = false;
+    uint8_t buffer[256];
+    do {
+        if(!storage_file_open(file, path, FSAM_WRITE, FSOM_OPEN_EXISTING)) break;
+        size_t remaining = stream_size(write->source);
+        if(!remaining || !stream_rewind(write->source)) break;
+        while(remaining) {
+            size_t count = MIN(remaining, sizeof(buffer));
+            if(stream_read(write->source, buffer, count) != count) break;
+            if(storage_file_write(file, buffer, count) != count) break;
+            remaining -= count;
+        }
+        if(remaining) break;
+        result = storage_file_sync(file);
+    } while(false);
+    if(!storage_file_close(file)) result = false;
+    storage_file_free(file);
+    return result;
+}
+
 bool subghz_save_protocol_to_file(
     SubGhz* subghz,
     FlipperFormat* flipper_format,
-    const char* dev_file_name) {
+    const char* dev_file_name,
+    SubGhzSaveMode mode) {
     furi_assert(subghz);
     furi_assert(flipper_format);
     furi_assert(dev_file_name);
-
     Storage* storage = furi_record_open(RECORD_STORAGE);
-    Stream* flipper_format_stream = flipper_format_get_raw_stream(flipper_format);
-
-    bool saved = false;
     FuriString* file_dir = furi_string_alloc();
-
+    FuriString* recovery = furi_string_alloc();
+    FlipperFormat* saved_data = flipper_format_string_alloc();
+    Stream* source = flipper_format_get_raw_stream(flipper_format);
+    Stream* copy = flipper_format_get_raw_stream(saved_data);
+    size_t position = stream_tell(source);
+    size_t size = stream_size(source);
+    bool saved = false;
     path_extract_dirname(dev_file_name, file_dir);
     do {
-        //removing additional fields
-        flipper_format_delete_key(flipper_format, "Repeat");
-        //flipper_format_delete_key(flipper_format, "Manufacture");
-
-        // Create subghz folder directory if necessary
-        if(!storage_simply_mkdir(storage, furi_string_get_cstr(file_dir))) {
-            dialog_message_show_storage_error(subghz->dialogs, "Cannot create\nfolder");
-            break;
+        // Strip transient fields from a private copy, preserving the live capture
+        // and its cursor even when saving fails. RAW recordings use file rename.
+        size_t copied = stream_copy_full(source, copy);
+        bool restored = stream_seek(source, position, StreamOffsetFromStart);
+        if(!size || copied != size || !restored) break;
+        if(flipper_format_key_exist(saved_data, "Repeat")) {
+            if(!flipper_format_rewind(saved_data) ||
+               !flipper_format_delete_key(saved_data, "Repeat"))
+                break;
         }
-
-        if(!storage_simply_remove(storage, dev_file_name)) {
-            break;
-        }
-
-        stream_seek(flipper_format_stream, 0, StreamOffsetFromStart);
-        stream_save_to_file(flipper_format_stream, storage, dev_file_name, FSOM_CREATE_ALWAYS);
-
-        if(storage_common_stat(storage, dev_file_name, NULL) != FSE_OK) {
-            break;
-        }
-
-        saved = true;
-    } while(0);
+        if(!storage_simply_mkdir(storage, furi_string_get_cstr(file_dir))) break;
+        SubGhzFileWrite write = {.storage = storage, .source = copy};
+        saved = echo_file_save(
+            storage,
+            dev_file_name,
+            mode == SubGhzSaveUpdate,
+            subghz_write_signal_file,
+            &write,
+            recovery);
+    } while(false);
+    if(mode == SubGhzSaveAutosave) {
+        // Receiver callback runs on the worker. The UI tick stops/joins it before
+        // opening a dialog; blocking here could deadlock a concurrent Stop.
+        if(!saved) subghz->autosave_failed = true;
+    } else if(!furi_string_empty(recovery)) {
+        const char* suffix = strrchr(furi_string_get_cstr(recovery), '.');
+        FuriString* message = furi_string_alloc_printf(
+            "%s\nPrior file kept as\n<file>%s",
+            saved ? "Saved." : "Save failed.",
+            suffix ? suffix : ".echo-old");
+        dialog_message_show_storage_error(subghz->dialogs, furi_string_get_cstr(message));
+        furi_string_free(message);
+    } else if(!saved) {
+        dialog_message_show_storage_error(
+            subghz->dialogs,
+            mode == SubGhzSaveUpdate ? "Updated signal\nnot saved\nCheck SD card" :
+                                       "Cannot save signal\nCheck name/SD card");
+    }
+    flipper_format_free(saved_data);
+    furi_string_free(recovery);
     furi_string_free(file_dir);
     furi_record_close(RECORD_STORAGE);
     return saved;
@@ -380,7 +429,8 @@ void subghz_save_to_file(void* context) {
         subghz_save_protocol_to_file(
             subghz,
             subghz_txrx_get_fff_data(subghz->txrx),
-            furi_string_get_cstr(subghz->file_path));
+            furi_string_get_cstr(subghz->file_path),
+            SubGhzSaveUpdate);
     }
 }
 
@@ -407,26 +457,21 @@ bool subghz_load_protocol_from_file(SubGhz* subghz) {
     return res;
 }
 
-bool subghz_rename_file(SubGhz* subghz) {
+bool subghz_rename_file(SubGhz* subghz, const char* destination) {
     furi_assert(subghz);
-    bool ret = true;
-
     Storage* storage = furi_record_open(RECORD_STORAGE);
-
-    if(furi_string_cmp(subghz->file_path_tmp, subghz->file_path)) {
-        FS_Error fs_result = storage_common_rename(
-            storage,
-            furi_string_get_cstr(subghz->file_path_tmp),
-            furi_string_get_cstr(subghz->file_path));
-
-        if(fs_result != FSE_OK) {
-            dialog_message_show_storage_error(subghz->dialogs, "Cannot rename\n file/directory");
-            ret = false;
-        }
+    const char* source = furi_string_get_cstr(subghz->file_path_tmp);
+    bool result;
+    if(storage_common_equivalent_path(storage, source, destination)) {
+        FileInfo info;
+        result = storage_common_stat(storage, source, &info) == FSE_OK &&
+                 !(info.flags & FSF_DIRECTORY);
+    } else {
+        result = storage_common_rename_safe(storage, source, destination) == FSE_OK;
     }
+    if(!result) dialog_message_show_storage_error(subghz->dialogs, "Cannot rename\nsignal file");
     furi_record_close(RECORD_STORAGE);
-
-    return ret;
+    return result;
 }
 
 bool subghz_file_available(SubGhz* subghz) {

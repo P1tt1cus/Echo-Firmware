@@ -29,7 +29,7 @@ App(
         "!subghz_scene_set_serial.c",
         "!subghz_scene_set_type.c",
     ],
-    requires=["region", "echo_replay"],
+    requires=["region", "echo_replay", "subghz_add_manually"],
     resources="resources",
     fap_libs=["assets", "hwdrivers"],
     fap_icon="icon.png",
@@ -50,6 +50,7 @@ App(
 
 App(
     appid="subghz_add_manually",
+    fap_version=(1, 1),
     name="Sub-GHz Add Manually",
     apptype=FlipperAppType.EXTERNAL,
     targets=["f7"],

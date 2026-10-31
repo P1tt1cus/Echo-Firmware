@@ -100,11 +100,11 @@ static void subghz_transmitter_free(Transmitter* t) {assert(t&&t->stopped);frees
 static void subghz_txrx_idle(SubGhzTxRx* t) {t->txrx_state=SubGhzTxRxStateIDLE;speaker=false;}
 static void subghz_devices_stop_async_tx(void* radio) {(void)radio;async_stops++;}
 static void subghz_txrx_speaker_off(SubGhzTxRx* t) {(void)t;speaker=false;}
-static void save(void* context) {(void)context;saves++;}
+static void save(void* context) {SubGhzTxRx* t=context;assert(t&&t->txrx_state==SubGhzTxRxStateIDLE&&!t->transmitter&&!speaker);saves++;}
 """
 TX_TEST = r"""
 int main(void) {
- SubGhzRadioPreset preset={alloc_text("AM650"),433920000};SubGhzTxRx t={.preset=&preset,.txrx_state=SubGhzTxRxStateIDLE,.need_save_callback=save};FlipperFormat f=0;
+ SubGhzRadioPreset preset={alloc_text("AM650"),433920000};SubGhzTxRx t={.preset=&preset,.txrx_state=SubGhzTxRxStateIDLE,.need_save_callback=save,.need_save_context=&t};FlipperFormat f=0;
  rewind_ok=false;assert(subghz_txrx_tx_start(&t,&f)==SubGhzTxRxStartTxStateErrorParserOthers&&!allocations);rewind_ok=true;
  protocol_ok=false;assert(subghz_txrx_tx_start(&t,&f)==SubGhzTxRxStartTxStateErrorParserOthers&&!allocations);protocol_ok=true;
  encoder_ok=false;assert(subghz_txrx_tx_start(&t,&f)==SubGhzTxRxStartTxStateErrorEncoderUnavailable&&!t.transmitter);encoder_ok=true;

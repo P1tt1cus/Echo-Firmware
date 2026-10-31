@@ -417,6 +417,11 @@ static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
     subghz_transmitter_free(instance->transmitter);
     instance->transmitter = NULL;
 
+    // Release the radio and speaker before a save callback can wait on storage
+    // or show a failure dialog.
+    subghz_txrx_idle(instance);
+    subghz_txrx_speaker_off(instance);
+
     //if protocol dynamic then we save the last upload
     if(instance->decoder_result &&
        instance->decoder_result->protocol->type == SubGhzProtocolTypeDynamic) {
@@ -424,8 +429,6 @@ static void subghz_txrx_tx_stop(SubGhzTxRx* instance) {
             instance->need_save_callback(instance->need_save_context);
         }
     }
-    subghz_txrx_idle(instance);
-    subghz_txrx_speaker_off(instance);
 }
 
 FlipperFormat* subghz_txrx_get_fff_data(SubGhzTxRx* instance) {
