@@ -25,7 +25,7 @@ static void nfc_scene_info_on_enter_slix(NfcApp* instance) {
 
     widget_reset(instance->widget);
     widget_add_text_scroll_element(
-        instance->widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
+        instance->widget, 0, 0, 128, 52, furi_string_get_cstr(temp_str));
 
     furi_string_free(temp_str);
 }
