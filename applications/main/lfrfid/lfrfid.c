@@ -1,4 +1,5 @@
 #include "lfrfid_i.h"
+#include "../echo/echo_file_save.h"
 #include <dolphin/dolphin.h>
 #include <applications/main/archive/helpers/archive_helpers_ext.h>
 
@@ -237,23 +238,42 @@ int32_t lfrfid_app(char* args) {
 
 bool lfrfid_save_key(LfRfid* app) {
     furi_assert(app);
-
-    bool result = false;
-
-    lfrfid_make_app_folder(app);
-
-    if(furi_string_end_with(app->file_path, LFRFID_APP_FILENAME_EXTENSION)) {
-        size_t filename_start = furi_string_search_rchar(app->file_path, '/');
-        furi_string_left(app->file_path, filename_start);
+    FuriString* destination = furi_string_alloc_set(app->file_path);
+    if(furi_string_end_with(destination, LFRFID_APP_FILENAME_EXTENSION)) {
+        path_extract_dirname(furi_string_get_cstr(app->file_path), destination);
     }
-
     furi_string_cat_printf(
-        app->file_path,
-        "/%s%s",
-        furi_string_get_cstr(app->file_name),
-        LFRFID_APP_FILENAME_EXTENSION);
+        destination, "/%s%s", furi_string_get_cstr(app->file_name), LFRFID_APP_FILENAME_EXTENSION);
+    bool result = lfrfid_save_key_data(app, destination);
+    if(result) furi_string_set(app->file_path, destination);
+    furi_string_free(destination);
+    return result;
+}
 
-    result = lfrfid_save_key_data(app, app->file_path);
+bool lfrfid_rename_key(LfRfid* app, const char* name) {
+    FuriString* destination = furi_string_alloc();
+    path_extract_dirname(furi_string_get_cstr(app->file_path), destination);
+    furi_string_cat_printf(destination, "/%s%s", name, LFRFID_APP_FILENAME_EXTENSION);
+    bool result;
+    if(storage_common_equivalent_path(
+           app->storage, furi_string_get_cstr(app->file_path), furi_string_get_cstr(destination))) {
+        FileInfo info;
+        result = storage_common_stat(app->storage, furi_string_get_cstr(app->file_path), &info) ==
+                     FSE_OK &&
+                 !(info.flags & FSF_DIRECTORY);
+    } else {
+        result = storage_common_rename_safe(
+                     app->storage,
+                     furi_string_get_cstr(app->file_path),
+                     furi_string_get_cstr(destination)) == FSE_OK;
+    }
+    if(result) {
+        furi_string_set(app->file_path, destination);
+        furi_string_set(app->file_name, name);
+    } else {
+        dialog_message_show_storage_error(app->dialogs, "Cannot rename\ncard file");
+    }
+    furi_string_free(destination);
     return result;
 }
 
@@ -320,13 +340,36 @@ bool lfrfid_load_key_data(LfRfid* app, FuriString* path, bool show_dialog) {
     return result;
 }
 
+static bool lfrfid_write_key_file(const char* path, void* context) {
+    LfRfid* app = context;
+    return lfrfid_dict_file_save(app->dict, app->protocol_id, path);
+}
+
 bool lfrfid_save_key_data(LfRfid* app, FuriString* path) {
-    bool result = lfrfid_dict_file_save(app->dict, app->protocol_id, furi_string_get_cstr(path));
-
-    if(!result) {
-        dialog_message_show_storage_error(app->dialogs, "Cannot save\nkey file");
+    FuriString* recovery = furi_string_alloc();
+    bool result = false;
+    if(storage_simply_mkdir(app->storage, LFRFID_APP_FOLDER)) {
+        result = echo_file_save(
+            app->storage,
+            furi_string_get_cstr(path),
+            furi_string_equal(path, app->file_path),
+            lfrfid_write_key_file,
+            app,
+            recovery);
     }
-
+    if(!furi_string_empty(recovery)) {
+        // Show the exact suffix; the recovery file is beside the original card.
+        const char* suffix = strrchr(furi_string_get_cstr(recovery), '.');
+        FuriString* message = furi_string_alloc_printf(
+            "%s\nOriginal kept as\n<card>%s",
+            result ? "Saved." : "Save failed.",
+            suffix ? suffix : ".echo-old");
+        dialog_message_show_storage_error(app->dialogs, furi_string_get_cstr(message));
+        furi_string_free(message);
+    } else if(!result) {
+        dialog_message_show_storage_error(app->dialogs, "Cannot save\ncard file");
+    }
+    furi_string_free(recovery);
     return result;
 }
 

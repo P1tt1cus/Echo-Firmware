@@ -57,13 +57,16 @@ bool lfrfid_scene_save_name_on_event(void* context, SceneManagerEvent event) {
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == LfRfidEventNext) {
             consumed = true;
+            bool saved;
             if(!furi_string_empty(app->file_name)) {
-                lfrfid_delete_key(app);
+                saved = lfrfid_rename_key(app, app->text_store);
+            } else {
+                furi_string_set(app->file_name, app->text_store);
+                saved = lfrfid_save_key(app);
+                if(!saved) furi_string_reset(app->file_name);
             }
 
-            furi_string_set(app->file_name, app->text_store);
-
-            if(lfrfid_save_key(app)) {
+            if(saved) {
                 scene_manager_next_scene(scene_manager, LfRfidSceneSaveSuccess);
                 if(scene_manager_has_previous_scene(scene_manager, LfRfidSceneSavedKeyMenu)) {
                     // Nothing, do not count editing as saving
@@ -72,10 +75,8 @@ bool lfrfid_scene_save_name_on_event(void* context, SceneManagerEvent event) {
                 } else {
                     dolphin_deed(DolphinDeedRfidSave);
                 }
-            } else {
-                scene_manager_search_and_switch_to_previous_scene(
-                    scene_manager, LfRfidSceneReadKeyMenu);
             }
+            // Keep the input and original selection available for retry on failure.
         }
     }
 

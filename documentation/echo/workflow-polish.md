@@ -346,3 +346,36 @@ not in source. Never commit captures, credential data or pairing secrets.
 - Prior head `868394fc9` CI passed: firmware `41230506419`, lint `41230506422`.
   Next: RFID original-preserving save/rename, NFC/Sub-GHz save audit, then combined
   installation, browser/performance/navigation regression and physical fixtures.
+
+
+### Stage 7 — RFID save and rename protection
+
+- RFID Rename now moves the existing file with collision rejection, preserving
+  file contents/comments. An unchanged name checks that the file still exists.
+  Filename/path state changes only after success; failed saves remain available
+  for retry. Editing no longer deletes the original first, and a failed edit
+  restores the original in-memory data while retaining edited bytes for retry.
+- A private native-app staged-save helper creates an exclusive sibling temporary
+  file, finishes writing it, then moves an existing destination to an unused
+  recovery path before committing. Commit failure attempts rollback. If rollback
+  fails, the original remains in `<card>.rfid.echo-old-N` and its suffix is shown.
+  If cleanup fails after a successful commit, the retained original is reported.
+  Existing temporary/recovery files are not overwritten; 32 slots bound lookup.
+- This protects ordinary storage-operation failure, not filesystem power-loss
+  atomicity. An interrupted commit can leave `.echo-new-N` / `.echo-old-N` siblings;
+  preserve and inspect these through the file manager before manual recovery.
+  No automatic startup recovery or removal of unknown retained files is attempted.
+- The core RFID serializer now checks final close status instead of reporting a
+  flush/close failure as success. Full behavior requires the combined core update;
+  the staged-save/rename app changes themselves remain API87.1 compatible.
+- `echo_file_save_test.py`: production helper, app helpers, name/edit event handlers
+  and serializer pass ASAN/UBSAN. Fault injection covers all normal save steps,
+  rollback failure, collision races, directories, slot exhaustion, retained-file
+  protection, state/data rollback, retry and 100 ownership cycles. Added to CI.
+  Existing RFID read/control tests and core/updater/RFID 1.2 builds pass. Physical
+  SD failure/power-cut behavior is not established by these host adapters.
+- Audit findings still to fix: NFC Save Name also deletes the original and shadow
+  before saving; `nfc_save_file` ignores its path argument, and buffered close
+  errors are ignored. Sub-GHz removes the destination before writing and ignores
+  the byte count, then infers success from file existence; its rename overwrites
+  collisions. Complete these paths before declaring the saved-file stage done.

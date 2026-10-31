@@ -34,6 +34,7 @@ bool lfrfid_dict_file_save(ProtocolDict* dict, ProtocolId protocol, const char* 
         result = true;
     } while(false);
 
+    if(!flipper_format_file_close(file)) result = false;
     flipper_format_free(file);
     furi_record_close(RECORD_STORAGE);
     free(data);
