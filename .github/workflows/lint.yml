@@ -3,11 +3,9 @@ name: "Lint"
 on:
   push:
     branches:
-      - "**"
-      - "!release"
-    tags:
-      - "*"
+      - studio
   pull_request:
+    branches: [studio]
 
 env:
   SET_GH_OUTPUT: 1
