@@ -6,7 +6,7 @@ Next-Flip. The initial branch starts at
 **d3f89dfe2ef6b01839201598e9be1590cba80322**, the installed Momentum build from
 2026-08-18: **f7 / API 87.1**. `studio-target.json` records this baseline.
 
-Echo 1.0 adds the Echo launcher, desktop pulse theme and firmware identity.
+Echo 1.1 adds shared app/settings menus to the Echo launcher, pulse theme and identity.
 See [Echo build and installation notes](documentation/echo/README.md).
 It is maintained alongside [Echo Radio](https://github.com/P1tt1cus/flipperzero-wifi-marauder)
 and [our ESP32 firmware](https://github.com/P1tt1cus/ESP32Marauder).

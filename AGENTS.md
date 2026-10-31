@@ -38,3 +38,9 @@ the USB serial-port name; re-enumerate before connecting.
 App dashboards are external FAP updates; see the Echo guide. Run
 `scripts/echo_dashboard_test.py` and build the three affected FAPs. Keep
 `applications/main/echo/echo_dashboard.h` identical to the companion copy.
+
+Shared GUI menus are styled in `applications/services/gui/modules/echo_menu.h`,
+Submenu/VariableItemList and the Compact Menu renderer. Run
+`scripts/echo_shared_menu_test.py` with existing Echo checks. Changes require a
+firmware-only update; retain API 87.1, existing FAPs and SD resources. Preserve
+standard/extended callbacks, settings values, locks and app-specific input.
