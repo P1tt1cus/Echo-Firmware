@@ -63,8 +63,14 @@ SubGhzTxRx* subghz_txrx_alloc(void) {
     //set default device External
     subghz_devices_init();
     instance->radio_device_type = SubGhzRadioDeviceTypeInternal;
-    instance->radio_device_type =
-        subghz_txrx_radio_device_set(instance, SubGhzRadioDeviceTypeExternalCC1101);
+    instance->radio_device_type = subghz_txrx_radio_device_set(
+        instance,
+#ifdef ECHO_REPLAY_BENCH
+        SubGhzRadioDeviceTypeInternal
+#else
+        SubGhzRadioDeviceTypeExternalCC1101
+#endif
+    );
 #endif
 
     return instance;
@@ -353,8 +359,12 @@ SubGhzTxRxStartTxState subghz_txrx_tx_start(SubGhzTxRx* instance, FlipperFormat*
 
                 if(ret == SubGhzTxRxStartTxStateOk) {
                     //Start TX
-                    subghz_devices_start_async_tx(
-                        instance->radio_device, subghz_transmitter_yield, instance->transmitter);
+                    if(!subghz_devices_start_async_tx(
+                           instance->radio_device,
+                           subghz_transmitter_yield,
+                           instance->transmitter)) {
+                        ret = SubGhzTxRxStartTxStateErrorParserOthers;
+                    }
                 }
             } else {
                 ret = SubGhzTxRxStartTxStateErrorParserOthers;

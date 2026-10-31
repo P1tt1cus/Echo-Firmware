@@ -27,6 +27,7 @@ Echo's native firmware works without an ESP32. Radio operations require the comp
 
 - **App dashboards:** Remotes, NFC and Sub-GHz share four visible actions, descriptions, status and predictable navigation. Echo Radio uses the same design.
 - **Shared menus:** apps using the standard Submenu and VariableItemList controls inherit Echo titles, selection counts, scrolling and contextual button hints.
+- **Sub-GHz Replay Bench:** compare saved captures, inspect metadata and decoded-key differences, prepare one bounded replay, and record receiver observations separately from transmission status. See the [bench guide](documentation/echo/replay-bench.md).
 - **Desktop identity:** an original monochrome pulse animation reveals the Echo wordmark.
 - **Installer:** Echo branding, real progress, readable stages and retained error diagnostics, retry and exit controls.
 - **Compatibility:** the maintained build retains API 87.1 and existing file formats. Internal application IDs and settings paths keep their established names so saved configuration continues to work.
@@ -60,13 +61,13 @@ dist/f7-C/f7-update-echo-1.1-<commit>/
   updater.bin
 ```
 
-This package updates the MCU firmware and updater; it does not replace the Bluetooth radio stack or SD-card resources/apps. Build the native dashboard apps and Echo's configuration app separately:
+This package updates the MCU firmware and updater; it does not replace the Bluetooth radio stack or SD-card resources/apps. Build the native dashboard apps, Echo's configuration app and Replay Bench separately:
 
 ```sh
-FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz fap_momentum_app SKIP_EXTERNAL=1
+FBT_NO_SYNC=1 ./fbt -j4 fap_infrared fap_nfc fap_subghz fap_momentum_app fap_echo_replay SKIP_EXTERNAL=1
 ```
 
-Their FAPs are written to `build/f7-firmware-C/.extapps/`. Successful [Echo firmware CI runs](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml) also provide an `echo-f7-api87.1` artifact containing the update and these four apps. CI artifacts are development builds, not a separate stable release channel.
+Their FAPs are written to `build/f7-firmware-C/.extapps/`. Successful [Echo firmware CI runs](https://github.com/P1tt1cus/Echo-Firmware/actions/workflows/build.yml) also provide an `echo-f7-api87.1` artifact containing the update and these five apps. CI artifacts are development builds, not a separate stable release channel.
 
 ## Install
 
@@ -89,6 +90,8 @@ Run the host checks from the repository root. The asset validator needs Pillow, 
 python3 scripts/echo_menu_test.py
 python3 scripts/echo_dashboard_test.py
 python3 scripts/echo_shared_menu_test.py
+python3 scripts/echo_replay_test.py
+python3 scripts/echo_replay_control_test.py
 python3 scripts/echo_installer_test.py --package-check
 python3 scripts/echo_validate.py
 ```

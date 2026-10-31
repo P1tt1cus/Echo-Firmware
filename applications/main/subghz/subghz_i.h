@@ -48,6 +48,7 @@
 #define SUBGHZ_MEASURE_LOADING false
 
 typedef struct EchoDashboard EchoDashboard;
+typedef struct SubGhzReplayBench SubGhzReplayBench;
 
 struct SubGhz {
     Gui* gui;
@@ -108,7 +109,10 @@ struct SubGhz {
     uint8_t tx_power;
     void* rpc_ctx;
     EchoDashboard* dashboard;
+    SubGhzReplayBench* replay_bench;
 };
+
+void subghz_replay_bench_free(SubGhz* subghz);
 
 void subghz_blink_start(SubGhz* subghz);
 void subghz_blink_stop(SubGhz* subghz);

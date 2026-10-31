@@ -99,6 +99,7 @@ static void subghz_load_custom_presets(SubGhzSetting* setting) {
 
 SubGhz* subghz_alloc(bool alloc_for_tx_only) {
     SubGhz* subghz = malloc(sizeof(SubGhz));
+    subghz->replay_bench = NULL;
 
     subghz->file_path = furi_string_alloc();
     subghz->file_path_tmp = furi_string_alloc();

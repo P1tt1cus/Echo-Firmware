@@ -1,6 +1,6 @@
 App(
     appid="subghz",
-    fap_version=(1, 1),
+    fap_version=(1, 2),
     name="Sub-GHz",
     apptype=FlipperAppType.MENUEXTERNAL,
     targets=["f7"],
@@ -12,6 +12,9 @@ App(
     sources=[
         "*.c",
         "!subghz_fap.c",
+        "!subghz_replay_app.c",
+        "!subghz_replay_data.c",
+        "!subghz_scene_replay_bench.c",
         "!subghz_gps.c",
         "!minmea.c",
         "!subghz_cli.c",
@@ -26,7 +29,7 @@ App(
         "!subghz_scene_set_serial.c",
         "!subghz_scene_set_type.c",
     ],
-    requires=["region"],
+    requires=["region", "echo_replay"],
     resources="resources",
     fap_libs=["assets", "hwdrivers"],
     fap_icon="icon.png",
@@ -99,4 +102,26 @@ App(
     entry_point="subghz_extended_freq",
     sources=["subghz_extended_freq.c"],
     order=650,
+)
+
+App(
+    appid="echo_replay",
+    name="Echo Replay Bench",
+    apptype=FlipperAppType.EXTERNAL,
+    targets=["f7"],
+    entry_point="echo_replay_app",
+    stack_size=3 * 1024,
+    fap_version=(1, 0),
+    fap_category="Sub-GHz",
+    fap_icon="icon.png",
+    fap_libs=["assets", "hwdrivers"],
+    requires=["region"],
+    cdefines=["ECHO_REPLAY_BENCH"],
+    sources=[
+        "subghz_replay_app.c",
+        "subghz_i.c",
+        "helpers/subghz_txrx.c",
+        "helpers/subghz_replay_data.c",
+        "scenes/subghz_scene_replay_bench.c",
+    ],
 )
