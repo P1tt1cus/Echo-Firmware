@@ -38,6 +38,7 @@ jobs:
           python3 scripts/echo_hid_view_test.py
           python3 scripts/echo_hid_profile_test.py
           python3 scripts/echo_ir_view_test.py
+          python3 scripts/echo_ir_move_test.py
           python3 scripts/echo_ir_control_test.py
           python3 scripts/echo_ir_file_test.py
           python3 scripts/echo_ir_exit_test.py

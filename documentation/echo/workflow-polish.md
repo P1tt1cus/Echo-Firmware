@@ -526,3 +526,24 @@ not in source. Never commit captures, credential data or pairing secrets.
   retries and joined-worker recovery notices. Existing IR view/control/file/exit
   and shared staged-save suites pass; API87.1 core/updater/IR 1.4 builds pass.
   Device installation and synthetic edit checks are next.
+
+- IR 1.4 source `f99bbb252` installed and hash-verified, MD5
+  `0af2eaa3587ef14256d99cd2859e71eb`. Synthetic remote rename
+  `00_EchoSave` → `00_EchoSave_` preserved exact MD5
+  `566e93349264f56b6566c1705c4652e6` and removed the old name. The remote view
+  showed the new name, and Back exited. Its reorder check exposed another
+  pre-existing UI issue, fixed next before verifying staged button moves.
+
+### Stage 8 — contextual control consistency
+
+- IR reorder previously saved on Back while allowing the scene to exit, posted
+  its worker callback under a model lock, and swapped endpoints on wrap even
+  though the saved operation inserts at a new position. The view now uses
+  insertion order throughout; OK picks/saves and Back cancels the preview first
+  (a second Back exits). No-op moves do not start a worker. Save callbacks run
+  outside the model lock; empty lists and reset callbacks are safe.
+- Three bounded rows leave room for position and explicit Pick/Save/Cancel/Exit
+  hints. Long labels stay within their row. `echo_ir_move_test.py` passes actual
+  input/render code with real containers under ASAN/UBSAN: empty/long lists,
+  both wrap boundaries, cancellation permutations, unlocked callbacks and 100
+  cycles. Device reorder/save/cancel verification follows the rebuilt IR FAP.
