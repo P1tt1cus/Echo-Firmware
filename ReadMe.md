@@ -21,7 +21,7 @@ Press the centre button from the desktop to open five destinations:
 | **Tools** | The full app menu, including NFC, Sub-GHz, RFID and other installed tools |
 | **Settings** | System settings |
 
-Echo's native firmware works without an ESP32. Radio operations require the companion and compatible external hardware; browsing existing session files does not require a responding board.
+Echo's native firmware works without an ESP32. The **Radio** launcher entry's ESP32 operations require the companion and compatible external hardware; browsing existing session files does not require a responding board.
 
 ### A consistent interface
 
@@ -85,6 +85,10 @@ The Radio and Sessions shortcuts expect [Echo Radio](https://github.com/P1tt1cus
 
 ## Validation and development
 
+Start with the [contributor handbook](documentation/echo/contributing/README.md).
+It provides current state, architecture, complete C/JS/Python examples, exact
+build/test/device recipes and a task playbook for contributors and coding models.
+
 Run the host checks from the repository root. The asset validator needs Pillow, heatshrink2 and colorlog; the host GUI checks need a C compiler with sanitizer support.
 
 ```sh
@@ -99,7 +103,7 @@ python3 scripts/echo_validate.py
 
 Run the package check after building the updater. CI runs these checks alongside the pinned firmware/app builds. Build and host-test success are recorded separately from actual on-device verification.
 
-Start changes from `studio` and target pull requests here. Review upstream updates on a separate integration branch; preserve Echo changes and dependency pins. Read [AGENTS.md](AGENTS.md) and the [Echo implementation guide](documentation/echo/README.md) before maintenance.
+The owner maintains one branch, `studio`. Make focused commits there, push to this fork and check CI for the exact commit. Review fetched upstream commits/diffs without creating persistent branches; preserve Echo changes and dependency pins. Read [AGENTS.md](AGENTS.md) and the [Echo implementation guide](documentation/echo/README.md) before maintenance.
 
 The proposed Echo BLE Lab, identity-testing workflows and Vox integration are **not implemented features**. Existing upstream Bluetooth tools remain available according to the installed app set.
 

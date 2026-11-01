@@ -1,0 +1,10 @@
+App(
+    appid="echo_starter",
+    name="Echo Starter",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="echo_starter_app",
+    requires=["gui"],
+    stack_size=2 * 1024,
+    fap_version=(0, 1),
+    fap_category="Tools",
+)

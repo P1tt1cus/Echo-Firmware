@@ -8,10 +8,15 @@ Preserve all source licenses and attribution.
 
 - `origin`: https://github.com/P1tt1cus/Echo-Firmware
 - `upstream`: https://github.com/Next-Flip/Momentum-Firmware
-- Maintained/default branch: `studio`. Start feature branches here; target PRs here.
+- Maintained/default branch: `studio`, the sole local/fork branch by owner request.
+  Work directly on it in focused commits, push to this fork, and verify CI. Do not
+  create feature/integration branches automatically; older PR workflows are historical.
 - Initial base: `d3f89dfe2ef6b01839201598e9be1590cba80322`, matching the installed
   Momentum build dated 2026-08-18. Target f7, API 87.1.
-- Read ReadMe.md and `studio-target.json` before work.
+- Read ReadMe.md and `studio-target.json` before work. Then use the
+  [contributor handbook](documentation/echo/contributing/README.md), including
+  current-state.md and task-playbook.md, before implementation. It contains exact
+  build/test/deployment recipes and complete C/JS/host-Python examples.
 - Paired companion: https://github.com/P1tt1cus/flipperzero-wifi-marauder
 - Paired ESP32: https://github.com/P1tt1cus/ESP32Marauder (ZY-ESP32, LDDB).
 - Preserve submodule pins. Do not silently advance dependencies or install a
@@ -19,8 +24,8 @@ Preserve all source licenses and attribution.
 - Follow the repository's fbt build instructions for relevant firmware changes.
   Build and test the companion against the resulting SDK when exported APIs change.
   Keep compile/test evidence separate from actual on-device validation.
-- Review upstream changes on a separate integration branch. Never reset `studio`
-  to upstream or automatically merge upstream releases.
+- Review fetched upstream commits/diffs without adding a persistent branch. Never
+  reset `studio` to upstream or automatically merge upstream releases.
 - Never commit private captures, keys, Wi-Fi credentials, device backups, or caches.
 - Initial fork setup changes no firmware behavior and flashes nothing. Preserve
   device storage and the installed recovery baseline during subsequent upgrades.
@@ -50,7 +55,7 @@ error diagnostics and retry/exit controls intact. Run
 `scripts/echo_installer_test.py --package-check` after building. The Echo guide
 records the version sources, quoted manifest label and preview limitations.
 
-Replay Bench 1.0 is a separate FAP opened from the Sub-GHz 1.2 dashboard. Read
+Replay Bench 1.2 is a separate FAP opened from the Sub-GHz 1.5 dashboard. Read
 `documentation/echo/replay-bench.md`. Run the parser and control sanitizer tests
 (`echo_replay_test.py`, `echo_replay_control_test.py`) and build `fap_subghz fap_echo_replay`.
 Install both apps; keep the bench separate to preserve heap for browsing and TX.

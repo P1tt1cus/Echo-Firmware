@@ -1,5 +1,8 @@
 # Echo 1.1
 
+For development, start with the [contributor handbook](contributing/README.md):
+current state, architecture, app/script templates, tests and device operations.
+
 [Echo Firmware](https://github.com/P1tt1cus/Echo-Firmware) is an independently
 maintained Momentum fork. The
 visible device name is **Echo**, without an owner name or edition suffix.
